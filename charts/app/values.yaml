@@ -39,8 +39,12 @@ securityContext: {}
   # runAsNonRoot: true
   # runAsUser: 1000
 
+livenessProbe: {}
+readinessProbe: {}
+
 service:
   type: ClusterIP
+  name: http
   port: 80
 
 ingress:

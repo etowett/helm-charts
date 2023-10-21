@@ -31,28 +31,71 @@ spec:
       securityContext:
         {{- toYaml .Values.podSecurityContext | nindent 8 }}
       containers:
-        - name: {{ .Chart.Name }}
+        - name: "{{ .Release.Name }}"
           securityContext:
             {{- toYaml .Values.securityContext | nindent 12 }}
           image: "{{ .Values.image.repository }}:{{ .Values.image.tag | default .Chart.AppVersion }}"
           imagePullPolicy: {{ .Values.image.pullPolicy }}
+          {{- if .Values.commands }}
+          command:
+          {{- range $command := .Values.commands }}
+            - "{{ $command }}"
+          {{- end }}
+          {{- end }}
+          {{- if .Values.commands }}
+          args:
+          {{- range $arg := .Values.args }}
+            - "{{ $arg }}"
+          {{- end }}
+          {{- end }}
           ports:
-            - name: http
+            - name: {{ .Values.service.name }}
               containerPort: {{ .Values.service.port }}
               protocol: TCP
+          {{- if .Values.livenessProbe }}
           livenessProbe:
             httpGet:
-              path: /
-              port: http
+              path: {{ .Values.livenessProbe.path }}
+              port:  {{ .Values.livenessProbe.port }}
+              {{- with .Values.readinessProbe.httpHeaders }}
+              httpHeaders:
+                {{- toYaml . | nindent 16 }}
+              {{- end }}
+            initialDelaySeconds:  {{ .Values.livenessProbe.initialDelaySeconds }}
+            periodSeconds:  {{ .Values.livenessProbe.periodSeconds }}
+            timeoutSeconds:  {{ .Values.livenessProbe.timeoutSeconds }}
+          {{- end }}
+          {{- if .Values.readinessProbe }}
           readinessProbe:
             httpGet:
-              path: /
-              port: http
+              path:  {{ .Values.readinessProbe.path }}
+              port: {{ .Values.readinessProbe.port }}
+              {{- with .Values.readinessProbe.httpHeaders }}
+              httpHeaders:
+                {{- toYaml . | nindent 16 }}
+              {{- end }}
+            initialDelaySeconds:  {{ .Values.readinessProbe.initialDelaySeconds }}
+            periodSeconds: {{ .Values.readinessProbe.periodSeconds }}
+            timeoutSeconds: {{ .Values.readinessProbe.timeoutSeconds }}
+          {{- end }}
           resources:
             {{- toYaml .Values.resources | nindent 12 }}
           {{- with .Values.volumeMounts }}
           volumeMounts:
             {{- toYaml . | nindent 12 }}
+          {{- end }}
+          env:
+          {{- range $key, $value := .Values.env }}
+            - name: "{{ $key }}"
+              value: "{{ $value }}"
+          {{- end }}
+          {{- range $key, $value := .Values.secretEnv }}
+            - name: {{ $key }}
+              valueFrom:
+                secretKeyRef:
+                {{- range $k, $v := $value }}
+                  {{ $k }}: {{ $v }}
+                {{- end}}
           {{- end }}
       {{- with .Values.volumes }}
       volumes:
