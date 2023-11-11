@@ -42,7 +42,7 @@ spec:
             - "{{ $command }}"
           {{- end }}
           {{- end }}
-          {{- if .Values.commands }}
+          {{- if .Values.args }}
           args:
           {{- range $arg := .Values.args }}
             - "{{ $arg }}"

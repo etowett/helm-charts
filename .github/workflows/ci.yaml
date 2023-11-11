@@ -25,6 +25,7 @@ jobs:
     strategy:
       matrix:
         k8s:
+          - v1.26
           - v1.27
           - v1.28
     steps:
@@ -45,6 +46,7 @@ jobs:
     strategy:
       matrix:
         k8s:
+          - v1.26
           - v1.27
           - v1.28
     steps:

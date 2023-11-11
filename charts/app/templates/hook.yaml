@@ -1,0 +1,71 @@
+{{- $chart_name := .Chart.Name }}
+{{- $chart_version := .Chart.Version | replace "+" "_" }}
+{{- $release_name := .Release.Name }}
+{{- $release_service := .Release.Service }}
+{{- $hook := .Values.hook -}}
+
+{{- if $hook -}}
+{{- range $command := .Values.hook.commands }}
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: {{ $release_name }}-{{ $hook.name }}
+  labels:
+    app.kubernetes.io/managed-by: {{ $release_service | quote }}
+    app.kubernetes.io/instance: {{ $release_name | quote }}
+    app.kubernetes.io/version: {{ $chart_version }}
+    helm.sh/chart: "{{ $chart_name }}-{{ $chart_version }}"
+  annotations:
+    "helm.sh/hook": pre-install, pre-upgrade
+    "helm.sh/hook-delete-policy": before-hook-creation,hook-succeeded
+    "helm.sh/hook-weight": "0"
+spec:
+  backoffLimit: {{ $hook.backoffLimit }}
+  ttlSecondsAfterFinished: {{ $hook.ttlSecondsAfterFinished }}
+  activeDeadlineSeconds: {{ $hook.activeDeadlineSeconds }}
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/managed-by: {{ $release_service | quote }}
+        app.kubernetes.io/instance: {{ $release_name | quote }}
+        helm.sh/chart: "{{ $chart_name }}-{{ $chart_version }}"
+    spec:
+      {{- with $.Values.imagePullSecrets }}
+      imagePullSecrets:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      restartPolicy: Never
+      containers:
+        - name: {{ $chart_name }}
+          image: "{{ $hook.image.repository }}:{{ $hook.image.tag }}"
+          imagePullPolicy: {{ $hook.image.pullPolicy }}
+          command:
+          - "/bin/sh"
+          args:
+          - "-c"
+          - {{ $command.command | quote }}
+          env:
+          {{- range $key, $value := $.Values.env }}
+            - name: "{{ $key }}"
+              value: "{{ $value }}"
+          {{- end }}
+          {{- range $key, $value := $.Values.secretEnv }}
+            - name: {{ $key }}
+              valueFrom:
+                secretKeyRef:
+          {{- range $k, $v := $value }}
+                  {{ $k }}: {{ $v }}
+          {{- end}}
+          {{- end }}
+          volumeMounts:
+{{- if $.Values.persistence.mounts }}
+{{ toYaml $.Values.persistence.mounts | indent 12 }}
+{{- end }}
+      volumes:
+      {{- if $.Values.persistence.enabled }}
+        - name: {{ $.Values.persistence.name  }}
+          persistentVolumeClaim:
+            claimName: {{ $.Values.persistence.existingClaim }}
+      {{- end }}
+{{- end -}}
+{{- end -}}
