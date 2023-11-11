@@ -80,9 +80,10 @@ spec:
           {{- end }}
           resources:
             {{- toYaml .Values.resources | nindent 12 }}
-          {{- with .Values.volumeMounts }}
+          {{- if .Values.persistence.enabled }}
           volumeMounts:
-            {{- toYaml . | nindent 12 }}
+            - mountPath: {{ .Values.persistence.mountPath  }}
+              name: {{ .Values.persistence.name  }}
           {{- end }}
           env:
           {{- range $key, $value := .Values.env }}
@@ -97,9 +98,11 @@ spec:
                   {{ $k }}: {{ $v }}
                 {{- end}}
           {{- end }}
-      {{- with .Values.volumes }}
       volumes:
-        {{- toYaml . | nindent 8 }}
+      {{- if .Values.persistence.enabled }}
+        - name: {{ .Values.persistence.name  }}
+          persistentVolumeClaim:
+            claimName: {{ .Values.persistence.claimName }}
       {{- end }}
       {{- with .Values.nodeSelector }}
       nodeSelector:
