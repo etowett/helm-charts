@@ -3,6 +3,16 @@ entries:
   app:
   - apiVersion: v2
     appVersion: 1.0.0
+    created: "2023-11-27T06:23:50.557799926Z"
+    description: A Helm chart for Citizix Apps
+    digest: d08ce94c952db0b73e101ad5a5dad94b6b6140212879f57f6ae4c1ced80a004d
+    name: app
+    type: application
+    urls:
+    - https://github.com/etowett/helm-charts/releases/download/app-0.1.5/app-0.1.5.tgz
+    version: 0.1.5
+  - apiVersion: v2
+    appVersion: 1.0.0
     created: "2023-11-11T13:40:15.055380262Z"
     description: A Helm chart for Citizix Apps
     digest: b41592c745b2749d131fdf092e68ce10c5d782f05f1a75897fdea8d4551f61b9
@@ -51,4 +61,4 @@ entries:
     urls:
     - https://github.com/etowett/helm-charts/releases/download/app-0.1.0/app-0.1.0.tgz
     version: 0.1.0
-generated: "2023-11-11T13:40:15.055407953Z"
+generated: "2023-11-27T06:23:50.557841834Z"
