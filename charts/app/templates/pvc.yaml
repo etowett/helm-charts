@@ -1,8 +1,8 @@
-{{- if .Values.persistence.enabled -}}
+{{- if .Values.pvc.create -}}
 kind: PersistentVolumeClaim
 apiVersion: v1
 metadata:
-  name: {{ .Values.persistence.claimName }}
+  name: {{ .Values.pvc.claimName }}
   labels:
     {{- include "app.labels" . | nindent 4 }}
 spec:
@@ -10,5 +10,5 @@ spec:
   - ReadWriteOnce
   resources:
     requests:
-      storage: {{ .Values.persistence.size }}
+      storage: {{ .Values.pvc.size }}
 {{- end }}
