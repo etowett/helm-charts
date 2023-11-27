@@ -19,7 +19,7 @@ spec:
       {{- end }}
       labels:
         {{- include "app.labels" . | nindent 8 }}
-	{{- with .Values.podLabels }}
+	      {{- with .Values.podLabels }}
         {{- toYaml . | nindent 8 }}
         {{- end }}
     spec:
@@ -49,8 +49,8 @@ spec:
           {{- end }}
           {{- end }}
           ports:
-            - name: {{ .Values.service.name }}
-              containerPort: {{ .Values.service.port }}
+            - name: app
+              containerPort: {{ .Values.containerPort }}
               protocol: TCP
           {{- if .Values.livenessProbe }}
           livenessProbe:
@@ -97,6 +97,65 @@ spec:
                   {{ $k }}: {{ $v }}
                 {{- end}}
           {{- end }}
+        {{- if .Values.sidecarimage }}
+        - name: {{ .Values.sidecarimage.name }}
+          image: {{ .Values.sidecarimage.repository }}:{{ .Values.sidecarimage.tag }}
+          imagePullPolicy: {{ .Values.sidecarimage.pullPolicy }}
+          {{- if .Values.sidecarimage.ports }}
+          ports:
+            {{ toYaml .Values.sidecarimage.ports | nindent 14 }}
+          {{- end }}
+          {{- if .Values.sidecarimage.mounts }}
+          volumeMounts:
+            {{ toYaml .Values.sidecarimage.mounts | nindent 14 }}
+          {{- end }}
+          {{- if .Values.sidecarimage.livenessProbe }}
+          livenessProbe:
+            httpGet:
+              path: {{ .Values.sidecarimage.livenessProbe.path }}
+              port:  {{ .Values.sidecarimage.livenessProbe.port }}
+            initialDelaySeconds:  {{ .Values.sidecarimage.livenessProbe.initialDelaySeconds }}
+            periodSeconds:  {{ .Values.sidecarimage.livenessProbe.periodSeconds }}
+            timeoutSeconds:  {{ .Values.sidecarimage.livenessProbe.timeoutSeconds }}
+          {{- end }}
+          {{- if .Values.sidecarimage.readinessProbe }}
+          readinessProbe:
+            httpGet:
+              path:  {{ .Values.sidecarimage.readinessProbe.path }}
+              port: {{ .Values.sidecarimage.readinessProbe.port }}
+            initialDelaySeconds:  {{ .Values.sidecarimage.readinessProbe.initialDelaySeconds }}
+            periodSeconds: {{ .Values.sidecarimage.readinessProbe.periodSeconds }}
+            timeoutSeconds: {{ .Values.sidecarimage.readinessProbe.timeoutSeconds }}
+          {{- end }}
+          resources:
+            {{- toYaml .Values.sidecarimage.resources | nindent 12 }}
+        {{- end }}
+      {{ if .Values.initContainer.enabled -}}
+      initContainers:
+        - name: {{ .Values.initContainer.name }}
+          image: "{{ .Values.image.repository }}:{{ .Values.image.tag | default .Chart.AppVersion }}"
+          imagePullPolicy:  {{ .Values.image.pullPolicy }}
+          command:
+          - "/bin/sh"
+          args:
+          - "-c"
+          - {{ .Values.initContainer.command }}
+          env:
+          {{- range $key, $value := .Values.env }}
+            - name: "{{ $key }}"
+              value: "{{ $value }}"
+          {{- end }}
+          {{- range $key, $value := .Values.secretEnv }}
+            - name: {{ $key }}
+              valueFrom:
+                secretKeyRef:
+          {{- range $k, $v := $value }}
+                  {{ $k }}: {{ $v }}
+          {{- end}}
+          {{- end }}
+          resources:
+            {{- toYaml .Values.initContainer.resources | nindent 12 }}
+        {{- end }}
       {{- with .Values.volumes }}
       volumes:
         {{- toYaml . | nindent 8 }}
