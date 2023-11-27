@@ -3,6 +3,7 @@
 {{- $release_name := .Release.Name }}
 {{- $release_service := .Release.Service }}
 {{- $hook := .Values.hook -}}
+{{- $app := .Values.app -}}
 
 {{- if $hook -}}
 {{- range $command := .Values.hook.commands }}
@@ -11,6 +12,12 @@ kind: Job
 metadata:
   name: {{ $release_name }}-{{ $hook.name }}
   labels:
+    {{- if $app }}
+    app_name: {{ $app.name }}
+    app_env: {{ $app.env }}
+    app_country: {{ $app.country }}
+    {{- end }}
+    app.kubernetes.io/name: {{ $release_name | quote }}
     app.kubernetes.io/managed-by: {{ $release_service | quote }}
     app.kubernetes.io/instance: {{ $release_name | quote }}
     app.kubernetes.io/version: {{ $chart_version }}
@@ -57,15 +64,13 @@ spec:
                   {{ $k }}: {{ $v }}
           {{- end}}
           {{- end }}
+          {{- if $.Values.hookVolumeMounts }}
           volumeMounts:
-{{- if $.Values.persistence.mounts }}
-{{ toYaml $.Values.persistence.mounts | indent 12 }}
-{{- end }}
+            {{ toYaml $.Values.hookVolumeMounts | nindent 12 }}
+          {{- end }}
+      {{- if $.Values.hookVolumes }}
       volumes:
-      {{- if $.Values.persistence.enabled }}
-        - name: {{ $.Values.persistence.name  }}
-          persistentVolumeClaim:
-            claimName: {{ $.Values.persistence.existingClaim }}
+        {{ toYaml $.Values.hookVolumes | nindent 8 }}
       {{- end }}
 {{- end -}}
 {{- end -}}

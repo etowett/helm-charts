@@ -10,6 +10,11 @@ image:
   # Overrides the image tag whose default is the chart appVersion.
   tag: "latest"
 
+app:
+  name: nginx
+  env: stage
+  country: ke
+
 imagePullSecrets: []
 nameOverride: ""
 fullnameOverride: ""
@@ -39,8 +44,9 @@ securityContext: {}
   # runAsNonRoot: true
   # runAsUser: 1000
 
-livenessProbe: {}
-readinessProbe: {}
+commands: []
+
+args: []
 
 service:
   type: ClusterIP
@@ -78,15 +84,38 @@ resources: {}
 autoscaling:
   enabled: false
   minReplicas: 1
-  maxReplicas: 10
+  maxReplicas: 100
   targetCPUUtilizationPercentage: 80
   targetMemoryUtilizationPercentage: 80
 
-persistence:
-  enabled: false
+pvc:
+  created: false
+
+# Additional volumes on the output Deployment definition.
+volumes: []
+# - name: foo
+#   secret:
+#     secretName: mysecret
+#     optional: false
+
+# Additional volumeMounts on the output Deployment definition.
+volumeMounts: []
+# - name: foo
+#   mountPath: "/etc/foo"
+#   readOnly: true
 
 nodeSelector: {}
 
 tolerations: []
 
 affinity: {}
+
+externalSecrets: []
+
+initContainer:
+  enabled: false
+  resources: {}
+
+hookVlumeMounts: {}
+
+hookVolumes: {}
