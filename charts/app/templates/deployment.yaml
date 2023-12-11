@@ -52,6 +52,11 @@ spec:
             - name: {{ .Values.service.name }}
               containerPort: {{ .Values.service.port }}
               protocol: TCP
+            {{- if .Values.extraPorts }}
+            - name: {{ .Values.extraPorts.name }}
+              containerPort: {{ .Values.extraPorts.port }}
+              protocol: {{ .Values.extraPorts.protocol }}
+            {{- end }}
           {{- if .Values.livenessProbe }}
           livenessProbe:
             httpGet:

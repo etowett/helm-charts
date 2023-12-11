@@ -53,6 +53,8 @@ service:
   name: http
   port: 80
 
+extraPorts: {}
+
 ingress:
   enabled: false
   className: ""
