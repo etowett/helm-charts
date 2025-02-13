@@ -24,11 +24,11 @@ metadata:
     helm.sh/chart: "{{ $chart_name }}-{{ $chart_version }}"
   annotations:
     "helm.sh/hook": pre-install,pre-upgrade
-    "helm.sh/hook-delete-policy": before-hook-creation,hook-succeeded
+    "helm.sh/hook-delete-policy": hook-succeeded
     "helm.sh/hook-weight": "0"
 spec:
   backoffLimit: {{ $hook.backoffLimit }}
-  ttlSecondsAfterFinished: {{ $hook.ttlSecondsAfterFinished }}
+  ttlSecondsAfterFinished: {{ $hook.ttlSecondsAfterFinished | default 3600 }}
   activeDeadlineSeconds: {{ $hook.activeDeadlineSeconds }}
   template:
     metadata:
