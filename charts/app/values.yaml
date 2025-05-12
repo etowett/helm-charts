@@ -50,6 +50,8 @@ commands: []
 
 args: []
 
+port: {}
+
 service:
   type: ClusterIP
   name: http

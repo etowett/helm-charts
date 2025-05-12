@@ -49,9 +49,9 @@ spec:
           {{- end }}
           {{- end }}
           ports:
-            - name: {{ .Values.service.name }}
-              containerPort: {{ .Values.service.port }}
-              protocol: TCP
+            - name: {{ .Values.port.name | default .Values.service.name }}
+              containerPort: {{ .Values.port.port | default .Values.service.port }}
+              protocol: {{ .Values.port.protocol | default .Values.service.protocol }}
             {{- if .Values.extraPorts }}
             - name: {{ .Values.extraPorts.name }}
               containerPort: {{ .Values.extraPorts.port }}
