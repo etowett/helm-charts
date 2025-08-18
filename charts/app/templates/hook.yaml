@@ -10,7 +10,7 @@
 apiVersion: batch/v1
 kind: Job
 metadata:
-  name: {{ $release_name }}-{{ $hook.name }}
+  name: {{ $release_name }}-{{ $hook.name }}-{{ randAlphaNum 8 | lower }}
   labels:
     {{- if $app }}
     app_name: {{ $app.name }}
