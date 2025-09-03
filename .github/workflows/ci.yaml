@@ -22,10 +22,10 @@ jobs:
       - name: Set up Helm
         uses: azure/setup-helm@v4
         with:
-          version: v3.14.0
+          version: v3.18.6
 
       - name: Run chart-testing (lint)
-        uses: helm/chart-testing-action@v2.6.1
+        uses: helm/chart-testing-action@v2.7.0
         with:
           command: lint
           config: .github/ct.yaml
@@ -37,9 +37,9 @@ jobs:
     strategy:
       matrix:
         k8s:
-          - v1.29
-          - v1.30
-          - v1.31
+          - v1.32
+          - v1.33
+          - v1.34
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -65,9 +65,9 @@ jobs:
     strategy:
       matrix:
         k8s:
-          - v1.29
-          - v1.30
-          - v1.31
+          - v1.32
+          - v1.33
+          - v1.34
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -80,7 +80,7 @@ jobs:
           node_image: kindest/node:${{ matrix.k8s }}
 
       - name: Run chart-testing (install)
-        uses: helm/chart-testing-action@v2.6.1
+        uses: helm/chart-testing-action@v2.7.0
         with:
           command: install
           config: .github/ct.yaml
