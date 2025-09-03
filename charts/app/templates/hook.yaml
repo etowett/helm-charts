@@ -7,6 +7,7 @@
 
 {{- if $hook -}}
 {{- range $command := .Values.hook.commands }}
+---
 apiVersion: batch/v1
 kind: Job
 metadata:
