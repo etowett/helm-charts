@@ -1,0 +1,48 @@
+# Example values file showing consolidated environment variables and secrets
+# Usage: helm install my-app ./charts/app -f values-example.yaml
+
+replicaCount: 1
+
+image:
+  repository: nginx
+  tag: "latest"
+
+# All environment variables (stored in configmap)
+env:
+  APP_NAME: "my-app"
+  DEBUG: "false"
+  LOG_LEVEL: "INFO"
+  DATABASE_HOST: "postgres"
+  REDIS_HOST: "redis"
+  CELERY_BROKER_HOST: "redis"
+  DATABASE_URL: "postgresql://user:pass@postgres:5432/db"
+  REDIS_URL: "redis://redis:6379"
+  CELERY_BROKER_URL: "redis://redis:6379/0"
+  CELERY_RESULT_BACKEND: "redis://redis:6379/0"
+
+# Secret environment variables (stored in consolidated secret)
+secretEnv:
+  DATABASE_PASSWORD:
+    name: "db-secret"
+    key: "password"
+  API_KEY:
+    name: "api-secret"
+    key: "key"
+
+# Direct secret values (consolidated into the same secret)
+secrets:
+  SECRET_KEY: "replace-me-with-secure-secret-key"
+  JWT_SECRET: "your-jwt-secret-here"
+  ENCRYPTION_KEY: "your-encryption-key-here"
+  ADMIN_PASSWORD: "admin-secure-password"
+
+# The above configuration will create:
+# 1. ConfigMap: my-app-env (contains all environment variables)
+# 2. Secret: my-app-secrets (contains all secret values)
+#
+# Both can be easily accessed by other applications like Celery workers using:
+# envFrom:
+# - configMapRef:
+#     name: my-app-env
+# - secretRef:
+#     name: my-app-secrets
