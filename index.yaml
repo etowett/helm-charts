@@ -3,6 +3,16 @@ entries:
   app:
   - apiVersion: v2
     appVersion: 1.0.0
+    created: "2025-09-04T04:07:08.658262348Z"
+    description: A Common Helm chart for Deploying Applications in kubernetes
+    digest: acaff616ff955ed4e7ee1dec5642a5ae1d66fd3d0e570eed0179e9e4c7575b98
+    name: app
+    type: application
+    urls:
+    - https://github.com/etowett/helm-charts/releases/download/app-1.2.2/app-1.2.2.tgz
+    version: 1.2.2
+  - apiVersion: v2
+    appVersion: 1.0.0
     created: "2025-08-31T03:17:35.786321756Z"
     description: A Common Helm chart for Deploying Applications in kubernetes
     digest: 5ce46d8e63332ea35425c85591fe8fc03d16d8ad6420a7e30bd46b6ca951a959
@@ -161,4 +171,4 @@ entries:
     urls:
     - https://github.com/etowett/helm-charts/releases/download/app-0.1.0/app-0.1.0.tgz
     version: 0.1.0
-generated: "2025-08-31T03:17:35.786419629Z"
+generated: "2025-09-04T04:07:08.658424617Z"
