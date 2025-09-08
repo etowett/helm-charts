@@ -10,11 +10,6 @@ image:
   # Overrides the image tag whose default is the chart appVersion.
   tag: "latest"
 
-app:
-  name: nginx
-  env: stage
-  country: ke
-
 imagePullSecrets: []
 nameOverride: ""
 fullnameOverride: ""
@@ -121,6 +116,44 @@ nodeSelector: {}
 tolerations: []
 
 affinity: {}
+
+# Environment variables to be stored in a configmap
+env: {}
+# Example:
+# env:
+#   DATABASE_URL: "postgresql://user:pass@host:5432/db"
+#   REDIS_URL: "redis://redis:6379"
+#   LOG_LEVEL: "INFO"
+
+# Secret environment variables (these remain as secrets)
+secretEnv: {}
+# Example:
+# secretEnv:
+#   DATABASE_PASSWORD:
+#     name: "db-secret"
+#     key: "password"
+#   API_KEY:
+#     name: "api-secret"
+#     key: "key"
+
+# Direct secret values (consolidated into a single Kubernetes Secret)
+secrets: {}
+# Example:
+# secrets:
+#   SECRET_KEY: "replace-me"
+#   DATABASE_PASSWORD: "my-secure-password"
+#   API_KEY: "your-api-key-here"
+#   JWT_SECRET: "your-jwt-secret"
+
+# Hybrid configmap (combines env vars with secret references)
+# WARNING: This approach is less secure than using secrets directly
+hybridConfig:
+  enabled: false
+  secretRefs: {}
+  # Example:
+  # secretRefs:
+  #   DATABASE_PASSWORD: "{{ .Values.externalSecrets.dbPassword }}"
+  #   API_KEY: "{{ .Values.externalSecrets.apiKey }}"
 
 externalSecrets: []
 

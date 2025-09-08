@@ -90,17 +90,24 @@ spec:
             {{- toYaml . | nindent 12 }}
           {{- end }}
           env:
-          {{- range $key, $value := .Values.env }}
-            - name: "{{ $key }}"
-              value: "{{ $value }}"
-          {{- end }}
+          {{- if or .Values.secretEnv .Values.secrets }}
+          # Load all secrets from the consolidated secret
           {{- range $key, $value := .Values.secretEnv }}
             - name: {{ $key }}
               valueFrom:
                 secretKeyRef:
-                {{- range $k, $v := $value }}
-                  {{ $k }}: {{ $v }}
-                {{- end}}
+                  name: "{{ include "app.fullname" . }}-secrets"
+                  key: "{{ $key }}"
+          {{- end }}
+          {{- if .Values.secrets }}
+          {{- range $key, $value := .Values.secrets }}
+            - name: {{ $key }}
+              valueFrom:
+                secretKeyRef:
+                  name: "{{ include "app.fullname" . }}-secrets"
+                  key: "{{ $key }}"
+          {{- end }}
+          {{- end }}
           {{- end }}
         {{- if .Values.sidecarimage }}
         - name: {{ .Values.sidecarimage.name }}
@@ -153,17 +160,33 @@ spec:
           {{- end }}
           {{- end }}
           env:
+          {{- if .Values.env }}
           {{- range $key, $value := .Values.env }}
             - name: "{{ $key }}"
-              value: "{{ $value }}"
+              valueFrom:
+                configMapKeyRef:
+                  name: "{{ include "app.fullname" . }}-env"
+                  key: "{{ $key }}"
           {{- end }}
+          {{- end }}
+          {{- if or .Values.secretEnv .Values.secrets }}
+          # Load all secrets from the consolidated secret
           {{- range $key, $value := .Values.secretEnv }}
             - name: {{ $key }}
               valueFrom:
                 secretKeyRef:
-          {{- range $k, $v := $value }}
-                  {{ $k }}: {{ $v }}
-          {{- end}}
+                  name: "{{ include "app.fullname" . }}-secrets"
+                  key: "{{ $key }}"
+          {{- end }}
+          {{- if .Values.secrets }}
+          {{- range $key, $value := .Values.secrets }}
+            - name: {{ $key }}
+              valueFrom:
+                secretKeyRef:
+                  name: "{{ include "app.fullname" . }}-secrets"
+                  key: "{{ $key }}"
+          {{- end }}
+          {{- end }}
           {{- end }}
           resources:
             {{- toYaml .Values.initContainer.resources | nindent 12 }}
