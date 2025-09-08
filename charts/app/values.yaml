@@ -138,7 +138,7 @@ celery:
     enabled: true
     replicaCount: 1
     command: ["python", "manage.py", "celery", "worker"]
-    args: ["-A", "myproject", "-l", "info"]
+    args: []
     resources: {}
     autoscaling:
       enabled: false
@@ -151,23 +151,23 @@ celery:
     affinity: {}
     podAnnotations: {}
     podLabels: {}
-  
+
   beat:
     enabled: false
     command: ["python", "manage.py", "celery", "beat"]
-    args: ["-A", "myproject", "-l", "info"]
+    args: []
     resources: {}
     nodeSelector: {}
     tolerations: []
     affinity: {}
     podAnnotations: {}
     podLabels: {}
-  
+
   flower:
     enabled: false
     replicaCount: 1
     command: ["python", "manage.py", "celery", "flower"]
-    args: ["-A", "myproject"]
+    args: []
     resources: {}
     service:
       port: 5555
