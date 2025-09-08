@@ -1,0 +1,19 @@
+{{- if and .Values.celery.enabled .Values.celery.flower.enabled }}
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ include "app.fullname" . }}-celery-flower
+  labels:
+    {{- include "app.labels" . | nindent 4 }}
+    app.kubernetes.io/component: celery-flower
+spec:
+  type: {{ .Values.celery.flower.service.type }}
+  ports:
+    - port: {{ .Values.celery.flower.service.port }}
+      targetPort: {{ .Values.celery.flower.service.name }}
+      protocol: TCP
+      name: {{ .Values.celery.flower.service.name }}
+  selector:
+    {{- include "app.selectorLabels" . | nindent 4 }}
+    app.kubernetes.io/component: celery-flower
+{{- end }}
