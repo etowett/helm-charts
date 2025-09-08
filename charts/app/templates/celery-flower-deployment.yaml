@@ -1,0 +1,92 @@
+{{- if and .Values.celery.enabled .Values.celery.flower.enabled }}
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "app.fullname" . }}-celery-flower
+  labels:
+    {{- include "app.labels" . | nindent 4 }}
+    app.kubernetes.io/component: celery-flower
+spec:
+  replicas: {{ .Values.celery.flower.replicaCount }}
+  selector:
+    matchLabels:
+      {{- include "app.selectorLabels" . | nindent 6 }}
+      app.kubernetes.io/component: celery-flower
+  template:
+    metadata:
+      {{- with .Values.celery.flower.podAnnotations }}
+      annotations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      labels:
+        {{- include "app.labels" . | nindent 8 }}
+        app.kubernetes.io/component: celery-flower
+        {{- with .Values.celery.flower.podLabels }}
+        {{- toYaml . | nindent 8 }}
+        {{- end }}
+    spec:
+      {{- with .Values.imagePullSecrets }}
+      imagePullSecrets:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      serviceAccountName: {{ include "app.serviceAccountName" . }}
+      securityContext:
+        {{- toYaml .Values.podSecurityContext | nindent 8 }}
+      containers:
+        - name: celery-flower
+          securityContext:
+            {{- toYaml .Values.securityContext | nindent 12 }}
+          image: "{{ .Values.image.repository }}:{{ .Values.image.tag | default .Chart.AppVersion }}"
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          {{- if .Values.celery.flower.command }}
+          command:
+          {{- range $command := .Values.celery.flower.command }}
+            - "{{ $command }}"
+          {{- end }}
+          {{- end }}
+          {{- if .Values.celery.flower.args }}
+          args:
+          {{- range $arg := .Values.celery.flower.args }}
+            - "{{ $arg }}"
+          {{- end }}
+          {{- end }}
+          ports:
+            - name: {{ .Values.celery.flower.service.name }}
+              containerPort: {{ .Values.celery.flower.service.port }}
+              protocol: TCP
+          resources:
+            {{- toYaml .Values.celery.flower.resources | nindent 12 }}
+          {{- with .Values.volumeMounts }}
+          volumeMounts:
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
+          env:
+          {{- range $key, $value := .Values.env }}
+            - name: "{{ $key }}"
+              value: "{{ $value }}"
+          {{- end }}
+          {{- range $key, $value := .Values.secretEnv }}
+            - name: {{ $key }}
+              valueFrom:
+                secretKeyRef:
+                {{- range $k, $v := $value }}
+                  {{ $k }}: {{ $v }}
+                {{- end}}
+          {{- end }}
+      {{- with .Values.volumes }}
+      volumes:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.celery.flower.nodeSelector }}
+      nodeSelector:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.celery.flower.affinity }}
+      affinity:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.celery.flower.tolerations }}
+      tolerations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+{{- end }}

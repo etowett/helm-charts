@@ -131,3 +131,65 @@ initContainer:
 hookVolumeMounts: {}
 
 hookVolumes: {}
+
+celery:
+  enabled: false
+  worker:
+    enabled: true
+    replicaCount: 1
+    command: ["python", "manage.py", "celery", "worker"]
+    args: []
+    resources: {}
+    autoscaling:
+      enabled: false
+      minReplicas: 1
+      maxReplicas: 10
+      targetCPUUtilizationPercentage: 80
+      targetMemoryUtilizationPercentage: 80
+    nodeSelector: {}
+    tolerations: []
+    affinity: {}
+    podAnnotations: {}
+    podLabels: {}
+
+  beat:
+    enabled: false
+    command: ["python", "manage.py", "celery", "beat"]
+    args: []
+    resources: {}
+    nodeSelector: {}
+    tolerations: []
+    affinity: {}
+    podAnnotations: {}
+    podLabels: {}
+
+  flower:
+    enabled: false
+    replicaCount: 1
+    command: ["python", "manage.py", "celery", "flower"]
+    args: []
+    resources: {}
+    service:
+      port: 5555
+      type: ClusterIP
+      name: flower
+    ingress:
+      enabled: false
+      className: ""
+      annotations: {}
+        # kubernetes.io/ingress.class: nginx
+        # kubernetes.io/tls-acme: "true"
+      hosts:
+        - host: flower-example.local
+          paths:
+            - path: /
+              pathType: ImplementationSpecific
+      tls: []
+        #  - secretName: flower-tls
+        #    hosts:
+        #      - flower-example.local
+    nodeSelector: {}
+    tolerations: []
+    affinity: {}
+    podAnnotations: {}
+    podLabels: {}
