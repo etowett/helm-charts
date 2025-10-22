@@ -33,6 +33,12 @@ serviceAccount:
 podAnnotations: {}
 podLabels: {}
 
+strategy:
+  type: RollingUpdate
+  rollingUpdate:
+    maxUnavailable: 1
+    maxSurge: 0
+
 podSecurityContext:
   {}
   # fsGroup: 2000
