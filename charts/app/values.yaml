@@ -2,23 +2,65 @@
 # This is a YAML-formatted file.
 # Declare variables to be passed into your templates.
 
+## @section Global parameters
+##
+
+## @param replicaCount Number of application replicas to deploy
+## Note: This value is ignored when autoscaling is enabled
+##
 replicaCount: 1
 
+## @section Image parameters
+##
+
+## Container image configuration
+## @param image.repository Container image repository
+## @param image.pullPolicy Image pull policy (Always, IfNotPresent, Never)
+## @param image.tag Image tag (overrides the chart appVersion if set)
+##
 image:
   repository: nginx
   pullPolicy: IfNotPresent
   # Overrides the image tag whose default is the chart appVersion.
   tag: "latest"
 
+## @section Application parameters
+##
+
+## Application metadata
+## @param app.name Application name used for labeling
+## @param app.env Application environment (e.g., dev, stage, prod)
+## @param app.country Application country/region identifier
+##
 app:
   name: nginx
   env: stage
   country: ke
 
+## @param imagePullSecrets Kubernetes secret names for pulling private images
+## Example:
+## imagePullSecrets:
+##   - name: myregistrykey
+##
 imagePullSecrets: []
+
+## @param nameOverride Override the chart name
+##
 nameOverride: ""
+
+## @param fullnameOverride Override the full name of resources
+##
 fullnameOverride: ""
 
+## @section Service Account parameters
+##
+
+## Service account configuration
+## @param serviceAccount.create Specifies whether a service account should be created
+## @param serviceAccount.automount Automatically mount a ServiceAccount's API credentials
+## @param serviceAccount.annotations Annotations to add to the service account
+## @param serviceAccount.name The name of the service account to use (generated if not set and create is true)
+##
 serviceAccount:
   # Specifies whether a service account should be created
   create: true
@@ -30,19 +72,56 @@ serviceAccount:
   # If not set and create is true, a name is generated using the fullname template
   name: ""
 
+## @section Pod parameters
+##
+
+## @param podAnnotations Annotations to add to pods
+## Example:
+## podAnnotations:
+##   prometheus.io/scrape: "true"
+##   prometheus.io/port: "8080"
+##
 podAnnotations: {}
+
+## @param podLabels Additional labels to add to pods
+##
 podLabels: {}
 
+## @section Deployment parameters
+##
+
+## Deployment strategy configuration
+## @param strategy.type Deployment strategy type (RollingUpdate or Recreate)
+## @param strategy.rollingUpdate.maxUnavailable Maximum number of pods that can be unavailable during update
+## @param strategy.rollingUpdate.maxSurge Maximum number of pods that can be created above desired count
+##
 strategy:
   type: RollingUpdate
   rollingUpdate:
     maxUnavailable: 1
     maxSurge: 0
 
+## @param podSecurityContext Pod security context
+## Example:
+## podSecurityContext:
+##   fsGroup: 2000
+##   runAsNonRoot: true
+##   runAsUser: 1000
+##
 podSecurityContext:
   {}
   # fsGroup: 2000
 
+## @param securityContext Container security context
+## Example:
+## securityContext:
+##   capabilities:
+##     drop:
+##     - ALL
+##   readOnlyRootFilesystem: true
+##   runAsNonRoot: true
+##   runAsUser: 1000
+##
 securityContext:
   {}
   # capabilities:
@@ -52,19 +131,63 @@ securityContext:
   # runAsNonRoot: true
   # runAsUser: 1000
 
+## @param commands Override container command (entrypoint)
+## Example:
+## commands:
+##   - "/bin/sh"
+##   - "-c"
+##
 commands: []
 
+## @param args Override container arguments
+## Example:
+## args:
+##   - "python"
+##   - "manage.py"
+##   - "runserver"
+##
 args: []
 
+## @section Network parameters
+##
+
+## Container port configuration
+## @param port.name Port name
+## @param port.port Port number
+## @param port.protocol Port protocol (TCP, UDP, SCTP)
+##
 port: {}
 
+## Service configuration
+## @param service.type Service type (ClusterIP, NodePort, LoadBalancer)
+## @param service.name Service port name
+## @param service.port Service port number
+## @param service.protocol Service protocol
+##
 service:
   type: ClusterIP
   name: http
   port: 80
 
+## @param extraPorts Additional ports to expose on the container and service
+## Example:
+## extraPorts:
+##   name: metrics
+##   port: 9090
+##   protocol: TCP
+##
 extraPorts: {}
 
+## @section Ingress parameters
+##
+
+## Ingress configuration
+## @param ingress.enabled Enable ingress resource
+## @param ingress.className Ingress class name
+## @param ingress.annotations Ingress annotations
+## @param ingress.hosts Ingress host configuration
+## @param ingress.tls Ingress TLS configuration
+##
 ingress:
   enabled: false
   className: ""
@@ -72,6 +195,7 @@ ingress:
     {}
     # kubernetes.io/ingress.class: nginx
     # kubernetes.io/tls-acme: "true"
+    # cert-manager.io/cluster-issuer: letsencrypt-prod
   hosts:
     - host: chart-example.local
       paths:
@@ -82,6 +206,51 @@ ingress:
   #    hosts:
   #      - chart-example.local
 
+## @section Probe parameters
+##
+
+## Liveness probe configuration
+## @param livenessProbe Liveness probe configuration
+## Example:
+## livenessProbe:
+##   path: /health
+##   port: 8080
+##   httpHeaders: []
+##   initialDelaySeconds: 30
+##   periodSeconds: 10
+##   timeoutSeconds: 5
+##   failureThreshold: 3
+##
+livenessProbe: {}
+
+## Readiness probe configuration
+## @param readinessProbe Readiness probe configuration
+## Example:
+## readinessProbe:
+##   path: /ready
+##   port: 8080
+##   httpHeaders: []
+##   initialDelaySeconds: 10
+##   periodSeconds: 5
+##   timeoutSeconds: 3
+##   successThreshold: 1
+##
+readinessProbe: {}
+
+## @section Resource parameters
+##
+
+## Resource limits and requests
+## @param resources Resource limits and requests for the container
+## Example:
+## resources:
+##   limits:
+##     cpu: 500m
+##     memory: 512Mi
+##   requests:
+##     cpu: 250m
+##     memory: 256Mi
+##
 resources:
   {}
   # We usually recommend not to specify default resources and to leave this as a conscious
@@ -95,6 +264,16 @@ resources:
   #   cpu: 100m
   #   memory: 128Mi
 
+## @section Autoscaling parameters
+##
+
+## Horizontal Pod Autoscaler configuration
+## @param autoscaling.enabled Enable Horizontal Pod Autoscaler
+## @param autoscaling.minReplicas Minimum number of replicas
+## @param autoscaling.maxReplicas Maximum number of replicas
+## @param autoscaling.targetCPUUtilizationPercentage Target CPU utilization percentage
+## @param autoscaling.targetMemoryUtilizationPercentage Target memory utilization percentage
+##
 autoscaling:
   enabled: false
   minReplicas: 1
@@ -102,44 +281,216 @@ autoscaling:
   targetCPUUtilizationPercentage: 80
   targetMemoryUtilizationPercentage: 80
 
+## @section Pod Disruption Budget parameters
+##
+
+## Pod Disruption Budget configuration
+## @param pdb.enabled Enable Pod Disruption Budget
+## @param pdb.minAvailable Minimum number of available pods (can be number or percentage)
+##
 pdb:
   enabled: false
   minAvailable: 1
 
+## @section Storage parameters
+##
+
+## Persistent Volume Claim configuration
+## @param pvc.created Create a Persistent Volume Claim
+##
 pvc:
   created: false
 
-# Additional volumes on the output Deployment definition.
+## @param volumes Additional volumes on the deployment
+## Example:
+## volumes:
+##   - name: config
+##     configMap:
+##       name: my-config
+##   - name: secrets
+##     secret:
+##       secretName: my-secret
+##       optional: false
+##
 volumes: []
 # - name: foo
 #   secret:
 #     secretName: mysecret
 #     optional: false
 
-# Additional volumeMounts on the output Deployment definition.
+## @param volumeMounts Additional volume mounts on the deployment
+## Example:
+## volumeMounts:
+##   - name: config
+##     mountPath: "/etc/config"
+##     readOnly: true
+##
 volumeMounts: []
 # - name: foo
 #   mountPath: "/etc/foo"
 #   readOnly: true
 
+## @section Scheduling parameters
+##
+
+## @param nodeSelector Node selector for pod assignment
+## Example:
+## nodeSelector:
+##   kubernetes.io/os: linux
+##   node.kubernetes.io/instance-type: t3.medium
+##
 nodeSelector: {}
 
+## @param tolerations Tolerations for pod assignment
+## Example:
+## tolerations:
+##   - key: "key1"
+##     operator: "Equal"
+##     value: "value1"
+##     effect: "NoSchedule"
+##
 tolerations: []
 
+## @param affinity Affinity rules for pod assignment
+## Example:
+## affinity:
+##   nodeAffinity:
+##     requiredDuringSchedulingIgnoredDuringExecution:
+##       nodeSelectorTerms:
+##         - matchExpressions:
+##           - key: kubernetes.io/os
+##             operator: In
+##             values:
+##               - linux
+##
 affinity: {}
 
+## @section Environment parameters
+##
+
+## @param env Environment variables as key-value pairs
+## Example:
+## env:
+##   DATABASE_HOST: "postgres.default.svc.cluster.local"
+##   DATABASE_PORT: "5432"
+##   REDIS_URL: "redis://redis:6379/0"
+##
+env: {}
+
+## @param secretEnv Environment variables from secrets
+## Example:
+## secretEnv:
+##   DATABASE_PASSWORD:
+##     name: db-secret
+##     key: password
+##
+secretEnv: {}
+
+## @section External Secrets parameters
+##
+
+## @param externalSecrets External secrets configuration
+## Example:
+## externalSecrets:
+##   - name: app-secrets
+##     backendType: secretsManager
+##     data:
+##       - key: prod/app/database
+##         name: DATABASE_URL
+##
 externalSecrets: []
 
+## @section Init Container parameters
+##
+
+## Init container configuration (runs before main container)
+## @param initContainer.enabled Enable init container
+## @param initContainer.name Init container name
+## @param initContainer.commands Init container command
+## @param initContainer.args Init container arguments
+## @param initContainer.resources Init container resources
+## @param initContainer.volumeMounts Init container volume mounts
+##
 initContainer:
   enabled: false
+  # name: init-migrations
+  # commands: ["python"]
+  # args: ["manage.py", "migrate"]
   resources: {}
+  # volumeMounts: []
 
+## @section Sidecar Container parameters
+##
+
+## @param sidecarimage Sidecar container configuration
+## Example:
+## sidecarimage:
+##   name: nginx-proxy
+##   repository: nginx
+##   tag: "1.21"
+##   pullPolicy: IfNotPresent
+##   ports:
+##     - name: proxy
+##       containerPort: 8080
+##       protocol: TCP
+##   resources:
+##     limits:
+##       cpu: 200m
+##       memory: 256Mi
+##
+sidecarimage: {}
+
+## @section Hook parameters
+##
+
+## Pre-install/pre-upgrade hook configuration
+## @param hook Hook job configuration for running tasks before deployment
+## Example:
+## hook:
+##   name: pre-install-migrations
+##   image:
+##     repository: myapp/web
+##     tag: "1.0.0"
+##     pullPolicy: IfNotPresent
+##   commands:
+##     - command: "python manage.py migrate"
+##     - command: "python manage.py collectstatic --noinput"
+##   backoffLimit: 3
+##   ttlSecondsAfterFinished: 600
+##   activeDeadlineSeconds: 300
+##
+hook: {}
+
+## @param hookVolumeMounts Volume mounts for hook jobs
+##
 hookVolumeMounts: {}
 
+## @param hookVolumes Volumes for hook jobs
+##
 hookVolumes: {}
 
+## @section Celery parameters
+##
+
+## Celery distributed task queue configuration
+## @param celery.enabled Enable Celery workers
+##
 celery:
   enabled: false
+
+  ## Celery worker configuration
+  ## @param celery.worker.enabled Enable Celery worker
+  ## @param celery.worker.replicaCount Number of worker replicas
+  ## @param celery.worker.command Worker command
+  ## @param celery.worker.args Worker arguments
+  ## @param celery.worker.resources Worker resource limits and requests
+  ## @param celery.worker.autoscaling Worker autoscaling configuration
+  ## @param celery.worker.nodeSelector Worker node selector
+  ## @param celery.worker.tolerations Worker tolerations
+  ## @param celery.worker.affinity Worker affinity
+  ## @param celery.worker.podAnnotations Worker pod annotations
+  ## @param celery.worker.podLabels Worker pod labels
+  ##
   worker:
     enabled: true
     replicaCount: 1
@@ -158,6 +509,17 @@ celery:
     podAnnotations: {}
     podLabels: {}
 
+  ## Celery beat scheduler configuration
+  ## @param celery.beat.enabled Enable Celery beat scheduler
+  ## @param celery.beat.command Beat command
+  ## @param celery.beat.args Beat arguments
+  ## @param celery.beat.resources Beat resource limits and requests
+  ## @param celery.beat.nodeSelector Beat node selector
+  ## @param celery.beat.tolerations Beat tolerations
+  ## @param celery.beat.affinity Beat affinity
+  ## @param celery.beat.podAnnotations Beat pod annotations
+  ## @param celery.beat.podLabels Beat pod labels
+  ##
   beat:
     enabled: false
     command: ["python", "manage.py", "celery", "beat"]
@@ -169,6 +531,20 @@ celery:
     podAnnotations: {}
     podLabels: {}
 
+  ## Celery Flower monitoring tool configuration
+  ## @param celery.flower.enabled Enable Celery Flower monitoring
+  ## @param celery.flower.replicaCount Number of Flower replicas
+  ## @param celery.flower.command Flower command
+  ## @param celery.flower.args Flower arguments
+  ## @param celery.flower.resources Flower resource limits and requests
+  ## @param celery.flower.service Flower service configuration
+  ## @param celery.flower.ingress Flower ingress configuration
+  ## @param celery.flower.nodeSelector Flower node selector
+  ## @param celery.flower.tolerations Flower tolerations
+  ## @param celery.flower.affinity Flower affinity
+  ## @param celery.flower.podAnnotations Flower pod annotations
+  ## @param celery.flower.podLabels Flower pod labels
+  ##
   flower:
     enabled: false
     replicaCount: 1

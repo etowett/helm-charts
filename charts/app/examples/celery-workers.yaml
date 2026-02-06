@@ -1,0 +1,118 @@
+# Application with Celery Workers Example
+# This example shows how to deploy a Django application with Celery workers, beat, and flower
+
+replicaCount: 2
+
+image:
+  repository: myapp/django
+  tag: "1.0.0"
+  pullPolicy: IfNotPresent
+
+app:
+  name: django-app
+  env: production
+  country: us
+
+commands: ["gunicorn"]
+args: ["--bind", "0.0.0.0:8000", "myapp.wsgi:application"]
+
+service:
+  type: ClusterIP
+  port: 8000
+
+resources:
+  limits:
+    cpu: 1000m
+    memory: 1Gi
+  requests:
+    cpu: 500m
+    memory: 512Mi
+
+livenessProbe:
+  path: /health/
+  port: 8000
+  initialDelaySeconds: 30
+  periodSeconds: 10
+  timeoutSeconds: 5
+
+readinessProbe:
+  path: /ready/
+  port: 8000
+  initialDelaySeconds: 10
+  periodSeconds: 5
+  timeoutSeconds: 3
+
+env:
+  DJANGO_SETTINGS_MODULE: "myapp.settings.production"
+  CELERY_BROKER_URL: "redis://redis:6379/0"
+  CELERY_RESULT_BACKEND: "redis://redis:6379/0"
+
+# Enable Celery components
+celery:
+  enabled: true
+
+  worker:
+    enabled: true
+    replicaCount: 3
+    command: ["celery", "-A", "myapp", "worker"]
+    args: ["-l", "info", "--concurrency", "4"]
+    resources:
+      limits:
+        cpu: 1000m
+        memory: 1Gi
+      requests:
+        cpu: 500m
+        memory: 512Mi
+    autoscaling:
+      enabled: true
+      minReplicas: 2
+      maxReplicas: 10
+      targetCPUUtilizationPercentage: 70
+      targetMemoryUtilizationPercentage: 80
+    podAnnotations:
+      prometheus.io/scrape: "true"
+      prometheus.io/port: "9090"
+
+  beat:
+    enabled: true
+    command: ["celery", "-A", "myapp", "beat"]
+    args: ["-l", "info"]
+    resources:
+      limits:
+        cpu: 200m
+        memory: 256Mi
+      requests:
+        cpu: 100m
+        memory: 128Mi
+
+  flower:
+    enabled: true
+    replicaCount: 1
+    command: ["celery", "-A", "myapp", "flower"]
+    args: ["--port=5555"]
+    resources:
+      limits:
+        cpu: 200m
+        memory: 256Mi
+      requests:
+        cpu: 100m
+        memory: 128Mi
+    service:
+      port: 5555
+      type: ClusterIP
+      name: flower
+    ingress:
+      enabled: true
+      className: nginx
+      annotations:
+        nginx.ingress.kubernetes.io/auth-type: basic
+        nginx.ingress.kubernetes.io/auth-secret: flower-basic-auth
+      hosts:
+        - host: flower.example.com
+          paths:
+            - path: /
+              pathType: Prefix
+      tls:
+        - secretName: flower-tls
+          hosts:
+            - flower.example.com
