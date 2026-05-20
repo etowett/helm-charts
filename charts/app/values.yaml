@@ -295,10 +295,21 @@ pdb:
 ##
 
 ## Persistent Volume Claim configuration
-## @param pvc.created Create a Persistent Volume Claim
+## @param pvc.create Create a Persistent Volume Claim
+## @param pvc.claimName Override the generated PVC name (defaults to `<fullname>-data`)
+## @param pvc.size Requested storage size (Kubernetes quantity, e.g. 1Gi, 500Mi)
+## @param pvc.accessModes List of access modes for the PVC
+## @param pvc.storageClassName StorageClass name (empty uses the cluster default)
+## @param pvc.annotations Extra annotations to apply to the PVC
 ##
 pvc:
-  created: false
+  create: false
+  claimName: ""
+  size: 1Gi
+  accessModes:
+    - ReadWriteOnce
+  storageClassName: ""
+  annotations: {}
 
 ## @param volumes Additional volumes on the deployment
 ## Example:
@@ -384,6 +395,24 @@ env: {}
 ##     key: password
 ##
 secretEnv: {}
+
+## @section ConfigMap parameters
+##
+
+## @param configMaps Additional ConfigMaps to render alongside the application.
+## Each entry produces one ConfigMap; mount them via `volumes`/`volumeMounts`
+## or reference them with envFrom in your own values.
+## Example:
+## configMaps:
+##   - name: app-config
+##     annotations: {}
+##     data:
+##       APP_LOG_LEVEL: "info"
+##       config.yaml: |
+##         feature_flags:
+##           new_thing: true
+##
+configMaps: []
 
 ## @section External Secrets parameters
 ##

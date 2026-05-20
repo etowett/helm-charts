@@ -1,14 +1,21 @@
 {{- if .Values.pvc.create -}}
-kind: PersistentVolumeClaim
 apiVersion: v1
+kind: PersistentVolumeClaim
 metadata:
-  name: {{ .Values.pvc.claimName }}
+  name: {{ .Values.pvc.claimName | default (printf "%s-data" (include "app.fullname" .)) }}
   labels:
     {{- include "app.labels" . | nindent 4 }}
+  {{- with .Values.pvc.annotations }}
+  annotations:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
 spec:
   accessModes:
-  - ReadWriteOnce
+    {{- toYaml .Values.pvc.accessModes | nindent 4 }}
   resources:
     requests:
-      storage: {{ .Values.pvc.size }}
+      storage: {{ .Values.pvc.size | quote }}
+  {{- with .Values.pvc.storageClassName }}
+  storageClassName: {{ . | quote }}
+  {{- end }}
 {{- end }}

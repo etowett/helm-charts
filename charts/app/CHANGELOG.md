@@ -5,7 +5,11 @@ All notable changes to this Helm chart will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [1.4.0] - 2026-02-02
+## [1.4.0] - 2026-05-20
+
+### Changed (breaking)
+- Bumped `kubeVersion` from `>=1.19.0-0` to `>=1.29.0-0` to align with currently-supported upstream Kubernetes releases. Helm will refuse to install on older clusters; pin to an earlier chart release if you need pre-1.29 support.
+- Renamed `pvc.created` to `pvc.create`. The old key was a typo and never matched the PVC template, so the template was effectively dead.
 
 ### Fixed
 - Fixed bug in deployment.yaml where livenessProbe was incorrectly referencing `readinessProbe.httpHeaders` instead of `livenessProbe.httpHeaders`
@@ -13,6 +17,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Corrected `hookVolumes` and `hookVolumeMounts` types from object (`{}`) to array (`[]`) to match the Kubernetes Pod spec rendered by the hook template
 - Aligned the `externalSecrets` example in `values.yaml` with the keys actually consumed by the external-secrets template
 - Removed `ExternalName` from the `service.type` schema enum since the Service template does not render `externalName`
+- PVC template now renders successfully: keys (`pvc.create`, `pvc.claimName`, `pvc.size`, `pvc.accessModes`, `pvc.storageClassName`, `pvc.annotations`) are wired through and validated by the schema
+- ConfigMap template now emits proper `---` separators between resources and standard `app.kubernetes.io/*` labels
+- Removed unreachable pre-1.19 branches from both Ingress templates (the old `extensions/v1beta1` / `networking.k8s.io/v1beta1` fall-throughs and the conditional `pathType`)
 
 ### Added
 - Comprehensive README.md with detailed documentation
@@ -90,11 +97,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Migrating to 1.4.0
 
-This is a backward-compatible release. No action is required, but a few defaults and types were corrected:
+This release contains two intentional breaking changes:
+
+- `kubeVersion` is now `>=1.29.0-0`. Helm will refuse `install`/`upgrade` on older clusters. If you need to deploy to a cluster on 1.28 or earlier, pin to a `1.3.x` release.
+- `pvc.created` has been renamed to `pvc.create`. The old key was a typo and the PVC template never rendered with it. If you had `pvc.created: true` in your values, change it to `pvc.create: true` and review the new `pvc.size` / `pvc.accessModes` / `pvc.storageClassName` defaults.
+
+Other changes you should know about:
 
 - `service.protocol` now defaults to `TCP`. If you previously relied on the protocol being empty, set `service.protocol: ""` explicitly.
 - `hookVolumes` and `hookVolumeMounts` are now typed as arrays (`[]`). If you set them as maps in your values file, convert them to lists.
 - `service.type: ExternalName` is no longer accepted by the schema. The Service template never supported it.
+- The previously-undocumented `configMaps` value is now in the schema and `values.yaml`. Existing values continue to work.
 
 **Recommended Actions:**
 1. Review the new examples in the `examples/` directory
@@ -118,9 +131,12 @@ Celery support is opt-in via `celery.enabled: false` by default. No changes requ
 
 ## Breaking Changes
 
-### None in recent versions
+### 1.4.0
 
-All changes in versions 1.0.0 through 1.4.0 have been backward compatible.
+- `kubeVersion` bumped to `>=1.29.0-0`. Older clusters will be refused at install time.
+- `pvc.created` renamed to `pvc.create`. The old key never worked because the template referenced `pvc.create`.
+
+All changes in 1.0.0 through 1.3.x were backward compatible.
 
 ---
 

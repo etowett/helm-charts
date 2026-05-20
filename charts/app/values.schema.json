@@ -285,9 +285,34 @@
     "pvc": {
       "type": "object",
       "properties": {
-        "created": {
+        "create": {
           "type": "boolean",
           "description": "Create PVC"
+        },
+        "claimName": {
+          "type": "string",
+          "description": "Override the generated PVC name"
+        },
+        "size": {
+          "type": "string",
+          "pattern": "^[0-9]+(Ei|Pi|Ti|Gi|Mi|Ki|E|P|T|G|M|K)?$",
+          "description": "Requested storage size as a Kubernetes resource quantity"
+        },
+        "accessModes": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "enum": ["ReadWriteOnce", "ReadOnlyMany", "ReadWriteMany", "ReadWriteOncePod"]
+          },
+          "description": "PVC access modes"
+        },
+        "storageClassName": {
+          "type": "string",
+          "description": "StorageClass name (empty uses the cluster default)"
+        },
+        "annotations": {
+          "type": "object",
+          "description": "Annotations for the PVC"
         }
       }
     },
@@ -334,6 +359,28 @@
         "type": "object"
       },
       "description": "External secrets"
+    },
+    "configMaps": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["name", "data"],
+        "properties": {
+          "name": {
+            "type": "string",
+            "description": "ConfigMap name"
+          },
+          "annotations": {
+            "type": "object",
+            "description": "ConfigMap annotations"
+          },
+          "data": {
+            "type": "object",
+            "description": "Key/value pairs to write into the ConfigMap"
+          }
+        }
+      },
+      "description": "Additional ConfigMaps to create"
     },
     "initContainer": {
       "type": "object",

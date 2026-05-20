@@ -20,8 +20,8 @@ A flexible and production-ready Helm chart for deploying applications in Kuberne
 
 ## Prerequisites
 
-- Kubernetes 1.19+
-- Helm 3.0+
+- Kubernetes 1.29+
+- Helm 3.8+
 
 ## Installing the Chart
 
@@ -171,9 +171,15 @@ The following table lists the configurable parameters of the chart and their def
 
 | Parameter | Description | Default |
 |-----------|-------------|---------|
-| `pvc.created` | Create persistent volume claim | `false` |
+| `pvc.create` | Create persistent volume claim | `false` |
+| `pvc.claimName` | Override the generated PVC name | `""` (defaults to `<fullname>-data`) |
+| `pvc.size` | Requested storage size (Kubernetes quantity) | `1Gi` |
+| `pvc.accessModes` | PVC access modes | `[ReadWriteOnce]` |
+| `pvc.storageClassName` | StorageClass name (empty uses cluster default) | `""` |
+| `pvc.annotations` | PVC annotations | `{}` |
 | `volumes` | Additional volumes | `[]` |
 | `volumeMounts` | Additional volume mounts | `[]` |
+| `configMaps` | Additional ConfigMaps to render alongside the app | `[]` |
 
 ### Scheduling Parameters
 
@@ -509,7 +515,21 @@ sidecarimage:
 
 ### To 1.4.0
 
-This version includes a bug fix for the livenessProbe httpHeaders reference, expanded documentation, configuration examples, a JSON schema for values validation, and a default `service.protocol` of `TCP`. `hookVolumes` and `hookVolumeMounts` are now arrays (`[]`) rather than objects. No breaking changes for typical configurations.
+This release modernises the chart for currently-supported Kubernetes versions and fixes templates that previously could not be enabled.
+
+Breaking changes:
+
+- `kubeVersion` is now `>=1.29.0-0`. Helm will refuse to install on clusters older than 1.29. If you need to run on an older cluster, pin to an earlier chart release.
+- `pvc.created` was renamed to `pvc.create` (the old key was a typo; the PVC template never matched). New keys `pvc.claimName`, `pvc.size`, `pvc.accessModes`, `pvc.storageClassName`, and `pvc.annotations` are now exposed.
+- `hookVolumes` and `hookVolumeMounts` are arrays (`[]`) rather than objects.
+
+Other changes:
+
+- Fixed the livenessProbe `httpHeaders` reference in the deployment template.
+- Added `service.protocol` default (`TCP`) so manifests stay valid out of the box.
+- Documented and schema-validated the previously-undocumented `configMaps` value; the ConfigMap template now emits proper YAML separators and labels.
+- Removed dead pre-1.19 branches from both Ingress templates now that the chart only targets 1.29+.
+- Expanded documentation, configuration examples, and JSON schema validation.
 
 ## Troubleshooting
 

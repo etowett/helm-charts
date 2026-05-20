@@ -1,12 +1,17 @@
-{{- if .Values.configMaps -}}
 {{- range $configmap := .Values.configMaps }}
+---
 apiVersion: v1
 kind: ConfigMap
 metadata:
   name: {{ $configmap.name }}
-data:
-  {{- range $k, $v := $configmap.data }}
-  {{ $k }}: {{ $v | toYaml | indent 1 }}
+  labels:
+    {{- include "app.labels" $ | nindent 4 }}
+  {{- with $configmap.annotations }}
+  annotations:
+    {{- toYaml . | nindent 4 }}
   {{- end }}
-{{- end -}}
-{{- end -}}
+{{- with $configmap.data }}
+data:
+  {{- toYaml . | nindent 2 }}
+{{- end }}
+{{- end }}

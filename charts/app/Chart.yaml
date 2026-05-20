@@ -23,8 +23,10 @@ version: "1.4.0"
 # It is recommended to use it with quotes.
 appVersion: "1.0.0"
 
-# Kubernetes version constraint
-kubeVersion: ">=1.19.0-0"
+# Kubernetes version constraint. Aligned with the versions actively supported
+# upstream and exercised in CI (kind install on 1.33-1.35, manifest validation
+# up to 1.36). Older clusters can still pin to an earlier chart release.
+kubeVersion: ">=1.29.0-0"
 
 # A list of keywords about this project
 keywords:
