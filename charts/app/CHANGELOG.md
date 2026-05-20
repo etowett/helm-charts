@@ -5,10 +5,14 @@ All notable changes to this Helm chart will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [1.3.1] - 2024-02-02
+## [1.4.0] - 2026-02-02
 
 ### Fixed
 - Fixed bug in deployment.yaml where livenessProbe was incorrectly referencing `readinessProbe.httpHeaders` instead of `livenessProbe.httpHeaders`
+- Added missing `service.protocol` default (`TCP`) to prevent invalid manifests when neither `port.protocol` nor `service.protocol` is set
+- Corrected `hookVolumes` and `hookVolumeMounts` types from object (`{}`) to array (`[]`) to match the Kubernetes Pod spec rendered by the hook template
+- Aligned the `externalSecrets` example in `values.yaml` with the keys actually consumed by the external-secrets template
+- Removed `ExternalName` from the `service.type` schema enum since the Service template does not render `externalName`
 
 ### Added
 - Comprehensive README.md with detailed documentation
@@ -84,11 +88,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## Migration Guides
 
-### Migrating to 1.3.1
+### Migrating to 1.4.0
 
-This is a patch release with backward-compatible changes. No migration is required. The bug fix for livenessProbe httpHeaders will only affect configurations that explicitly set `livenessProbe.httpHeaders`.
+This is a backward-compatible release. No action is required, but a few defaults and types were corrected:
 
-**Action Required:** None. This release is fully backward compatible.
+- `service.protocol` now defaults to `TCP`. If you previously relied on the protocol being empty, set `service.protocol: ""` explicitly.
+- `hookVolumes` and `hookVolumeMounts` are now typed as arrays (`[]`). If you set them as maps in your values file, convert them to lists.
+- `service.type: ExternalName` is no longer accepted by the schema. The Service template never supported it.
 
 **Recommended Actions:**
 1. Review the new examples in the `examples/` directory
@@ -114,7 +120,7 @@ Celery support is opt-in via `celery.enabled: false` by default. No changes requ
 
 ### None in recent versions
 
-All changes in versions 1.0.0 through 1.3.1 have been backward compatible.
+All changes in versions 1.0.0 through 1.4.0 have been backward compatible.
 
 ---
 

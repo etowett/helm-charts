@@ -112,6 +112,7 @@ The following table lists the configurable parameters of the chart and their def
 | `service.type` | Service type | `ClusterIP` |
 | `service.name` | Service port name | `http` |
 | `service.port` | Service port | `80` |
+| `service.protocol` | Container port protocol fallback used by the deployment template | `TCP` |
 | `extraPorts` | Additional ports to expose | `{}` |
 
 ### Ingress Parameters
@@ -128,14 +129,14 @@ The following table lists the configurable parameters of the chart and their def
 
 | Parameter | Description | Default |
 |-----------|-------------|---------|
-| `livenessProbe` | Liveness probe configuration | `nil` |
+| `livenessProbe` | Liveness probe configuration (empty `{}` disables the probe) | `{}` |
 | `livenessProbe.path` | Liveness probe HTTP path | - |
 | `livenessProbe.port` | Liveness probe port | - |
 | `livenessProbe.httpHeaders` | Liveness probe HTTP headers | `[]` |
 | `livenessProbe.initialDelaySeconds` | Initial delay for liveness probe | - |
 | `livenessProbe.periodSeconds` | Period for liveness probe | - |
 | `livenessProbe.timeoutSeconds` | Timeout for liveness probe | - |
-| `readinessProbe` | Readiness probe configuration | `nil` |
+| `readinessProbe` | Readiness probe configuration (empty `{}` disables the probe) | `{}` |
 | `readinessProbe.path` | Readiness probe HTTP path | - |
 | `readinessProbe.port` | Readiness probe port | - |
 | `readinessProbe.httpHeaders` | Readiness probe HTTP headers | `[]` |
@@ -506,9 +507,9 @@ sidecarimage:
 
 ## Upgrading
 
-### To 1.3.x
+### To 1.4.0
 
-This version includes a bug fix for the livenessProbe httpHeaders reference. No breaking changes.
+This version includes a bug fix for the livenessProbe httpHeaders reference, expanded documentation, configuration examples, a JSON schema for values validation, and a default `service.protocol` of `TCP`. `hookVolumes` and `hookVolumeMounts` are now arrays (`[]`) rather than objects. No breaking changes for typical configurations.
 
 ## Troubleshooting
 

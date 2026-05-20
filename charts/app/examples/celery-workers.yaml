@@ -53,7 +53,8 @@ celery:
 
   worker:
     enabled: true
-    replicaCount: 3
+    # replicaCount is ignored when autoscaling.enabled is true; aligned with minReplicas for clarity
+    replicaCount: 2
     command: ["celery", "-A", "myapp", "worker"]
     args: ["-l", "info", "--concurrency", "4"]
     resources:

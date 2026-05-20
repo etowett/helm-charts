@@ -162,12 +162,13 @@ port: {}
 ## @param service.type Service type (ClusterIP, NodePort, LoadBalancer)
 ## @param service.name Service port name
 ## @param service.port Service port number
-## @param service.protocol Service protocol
+## @param service.protocol Service protocol (TCP, UDP, SCTP)
 ##
 service:
   type: ClusterIP
   name: http
   port: 80
+  protocol: TCP
 
 ## @param extraPorts Additional ports to expose on the container and service
 ## Example:
@@ -219,7 +220,6 @@ ingress:
 ##   initialDelaySeconds: 30
 ##   periodSeconds: 10
 ##   timeoutSeconds: 5
-##   failureThreshold: 3
 ##
 livenessProbe: {}
 
@@ -233,7 +233,6 @@ livenessProbe: {}
 ##   initialDelaySeconds: 10
 ##   periodSeconds: 5
 ##   timeoutSeconds: 3
-##   successThreshold: 1
 ##
 readinessProbe: {}
 
@@ -393,10 +392,11 @@ secretEnv: {}
 ## Example:
 ## externalSecrets:
 ##   - name: app-secrets
-##     backendType: secretsManager
-##     data:
-##       - key: prod/app/database
-##         name: DATABASE_URL
+##     refreshInterval: 1h
+##     secretStoreRefName: my-cluster-secret-store
+##     secretStoreRefKind: ClusterSecretStore
+##     targetName: app-secrets
+##     dataKey: prod/app/database
 ##
 externalSecrets: []
 
@@ -462,12 +462,22 @@ sidecarimage: {}
 hook: {}
 
 ## @param hookVolumeMounts Volume mounts for hook jobs
+## Example:
+## hookVolumeMounts:
+##   - name: config
+##     mountPath: /etc/config
+##     readOnly: true
 ##
-hookVolumeMounts: {}
+hookVolumeMounts: []
 
 ## @param hookVolumes Volumes for hook jobs
+## Example:
+## hookVolumes:
+##   - name: config
+##     configMap:
+##       name: my-config
 ##
-hookVolumes: {}
+hookVolumes: []
 
 ## @section Celery parameters
 ##

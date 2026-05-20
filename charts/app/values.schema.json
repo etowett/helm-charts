@@ -148,7 +148,7 @@
       "properties": {
         "type": {
           "type": "string",
-          "enum": ["ClusterIP", "NodePort", "LoadBalancer", "ExternalName"],
+          "enum": ["ClusterIP", "NodePort", "LoadBalancer"],
           "description": "Service type"
         },
         "name": {
@@ -382,11 +382,17 @@
       "description": "Pre-install/pre-upgrade hook configuration"
     },
     "hookVolumes": {
-      "type": "object",
+      "type": "array",
+      "items": {
+        "type": "object"
+      },
       "description": "Hook volumes"
     },
     "hookVolumeMounts": {
-      "type": "object",
+      "type": "array",
+      "items": {
+        "type": "object"
+      },
       "description": "Hook volume mounts"
     },
     "celery": {
