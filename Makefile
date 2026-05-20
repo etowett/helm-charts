@@ -1,7 +1,11 @@
 # Helm charts repository — common dev tasks.
 # Run `make help` to list available targets.
 
-SHELL := /usr/bin/env bash
+# Use bash (not /bin/sh) so we can rely on pipefail, shopt, and arrays in
+# recipes. `bash` (PATH lookup) works on macOS and every Linux distro that
+# ships bash; `/usr/bin/env bash` is also valid on modern GNU Make but the
+# bare name avoids edge cases in older make versions.
+SHELL := bash
 .SHELLFLAGS := -eu -o pipefail -c
 
 # Tool versions — keep in lockstep with .github/workflows/ci.yaml
@@ -56,34 +60,32 @@ template: require-helm ## Render every chart with default values
 
 .PHONY: template-examples
 template-examples: require-helm ## Render every chart with each examples/*.yaml file
-	@for chart in charts/*/; do \
+	@shopt -s nullglob; \
+	for chart in charts/*/; do \
 		name=$$(basename "$$chart"); \
-		if [ -d "$${chart}examples" ]; then \
-			for example in $${chart}examples/*.yaml; do \
-				echo "==> helm template $$name -f $$(basename $$example)"; \
-				helm template "$$name-ci" "$$chart" -f "$$example" >/dev/null; \
-			done; \
-		fi; \
+		for example in $${chart}examples/*.yaml; do \
+			echo "==> helm template $$name -f $$(basename $$example)"; \
+			helm template "$$name-ci" "$$chart" -f "$$example" >/dev/null; \
+		done; \
 	done
 
 ##@ Validate (kubeconform)
 
 .PHONY: validate
 validate: require-helm install-kubeconform ## kubeconform-validate every chart (defaults + examples) against $(KUBE_VERSIONS)
-	@for k8s in $(KUBE_VERSIONS); do \
+	@shopt -s nullglob; \
+	for k8s in $(KUBE_VERSIONS); do \
 		echo "===> Kubernetes $$k8s"; \
 		for chart in charts/*/; do \
 			name=$$(basename "$$chart"); \
 			echo "  --> $$name (defaults)"; \
 			helm template "$$name-ci" "$$chart" | $(KUBECONFORM) -strict -ignore-missing-schemas \
 				-kubernetes-version "$$k8s" -summary -output text; \
-			if [ -d "$${chart}examples" ]; then \
-				for example in $${chart}examples/*.yaml; do \
-					echo "  --> $$name with $$(basename $$example)"; \
-					helm template "$$name-ci" "$$chart" -f "$$example" | $(KUBECONFORM) -strict -ignore-missing-schemas \
-						-kubernetes-version "$$k8s" -summary -output text; \
-				done; \
-			fi; \
+			for example in $${chart}examples/*.yaml; do \
+				echo "  --> $$name with $$(basename $$example)"; \
+				helm template "$$name-ci" "$$chart" -f "$$example" | $(KUBECONFORM) -strict -ignore-missing-schemas \
+					-kubernetes-version "$$k8s" -summary -output text; \
+			done; \
 		done; \
 	done
 
