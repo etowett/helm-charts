@@ -3,16 +3,37 @@ name: Helm Lint and Test Charts
 on:
   pull_request:
     paths:
-      - "charts/**"
+      - 'charts/**'
+      - '.github/workflows/ci.yaml'
+      - '.github/ct.yaml'
   push:
     branches:
       - main
     paths:
-      - "charts/**"
+      - 'charts/**'
+      - '.github/workflows/ci.yaml'
+      - '.github/ct.yaml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.head_ref || github.ref }}
+  cancel-in-progress: true
+
+env:
+  HELM_VERSION: v3.16.4
+  PYTHON_VERSION: '3.12'
+  KUBECONFORM_VERSION: v0.6.7
+  KIND_VERSION: v0.27.0
 
 jobs:
   lint-chart:
+    name: Lint and render
     runs-on: ubuntu-latest
+    outputs:
+      changed: ${{ steps.list-changed.outputs.changed }}
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -22,24 +43,66 @@ jobs:
       - name: Set up Helm
         uses: azure/setup-helm@v4
         with:
-          version: v3.18.6
+          version: ${{ env.HELM_VERSION }}
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+          check-latest: true
+
+      - name: Set up chart-testing
+        uses: helm/chart-testing-action@v2.7.0
+
+      - name: Detect changed charts
+        id: list-changed
+        run: |
+          set -euo pipefail
+          changed=$(ct list-changed --config .github/ct.yaml || true)
+          if [[ -n "${changed}" ]]; then
+            echo "changed=true" >> "$GITHUB_OUTPUT"
+            echo "Changed charts:"
+            echo "${changed}"
+          else
+            echo "changed=false" >> "$GITHUB_OUTPUT"
+            echo "No charts changed."
+          fi
 
       - name: Run chart-testing (lint)
-        uses: helm/chart-testing-action@v2.7.0
-        with:
-          command: lint
-          config: .github/ct.yaml
+        run: ct lint --config .github/ct.yaml
 
-  kubeval-chart:
+      - name: Render default values for every chart
+        run: |
+          set -euo pipefail
+          for chart in charts/*/; do
+            chart_name=$(basename "${chart}")
+            echo "==> Rendering ${chart_name} (default values)"
+            helm template "${chart_name}-ci" "${chart}" >/dev/null
+          done
+
+      - name: Render every example values file
+        run: |
+          set -euo pipefail
+          shopt -s nullglob
+          for chart in charts/*/; do
+            chart_name=$(basename "${chart}")
+            for example in "${chart}examples"/*.yaml; do
+              echo "==> Rendering ${chart_name} with $(basename "${example}")"
+              helm template "${chart_name}-ci" "${chart}" -f "${example}" >/dev/null
+            done
+          done
+
+  validate-manifests:
+    name: Validate (k8s ${{ matrix.k8s }})
     runs-on: ubuntu-latest
-    needs:
-      - lint-chart
+    needs: lint-chart
     strategy:
+      fail-fast: false
       matrix:
         k8s:
-          - v1.32
-          - v1.33
-          - v1.34
+          - '1.30.0'
+          - '1.31.0'
+          - '1.32.0'
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -47,40 +110,84 @@ jobs:
       - name: Set up Helm
         uses: azure/setup-helm@v4
         with:
-          version: v3.14.0
+          version: ${{ env.HELM_VERSION }}
 
-      - name: Run kubeval
-        env:
-          KUBERNETES_VERSION: ${{ matrix.k8s }}
+      - name: Install kubeconform
         run: |
-          chmod +x .github/kubeval.sh
-          .github/kubeval.sh
+          set -euo pipefail
+          curl -fsSL -o /tmp/kubeconform.tar.gz \
+            "https://github.com/yannh/kubeconform/releases/download/${KUBECONFORM_VERSION}/kubeconform-linux-amd64.tar.gz"
+          tar -xf /tmp/kubeconform.tar.gz -C /tmp kubeconform
+          sudo install -m 0755 /tmp/kubeconform /usr/local/bin/kubeconform
+          kubeconform -v
+
+      - name: Validate rendered manifests
+        env:
+          K8S_VERSION: ${{ matrix.k8s }}
+        run: |
+          set -euo pipefail
+          shopt -s nullglob
+          for chart in charts/*/; do
+            chart_name=$(basename "${chart}")
+            echo "==> Validating ${chart_name} (default values)"
+            helm template "${chart_name}-ci" "${chart}" | \
+              kubeconform -strict -ignore-missing-schemas \
+                -kubernetes-version "${K8S_VERSION}" \
+                -summary -output text
+
+            for example in "${chart}examples"/*.yaml; do
+              echo "==> Validating ${chart_name} with $(basename "${example}")"
+              helm template "${chart_name}-ci" "${chart}" -f "${example}" | \
+                kubeconform -strict -ignore-missing-schemas \
+                  -kubernetes-version "${K8S_VERSION}" \
+                  -summary -output text
+            done
+          done
 
   install-chart:
-    name: install-chart
+    name: Install (k8s ${{ matrix.k8s }})
     runs-on: ubuntu-latest
     needs:
       - lint-chart
-      - kubeval-chart
+      - validate-manifests
+    if: needs.lint-chart.outputs.changed == 'true'
     strategy:
+      fail-fast: false
       matrix:
-        k8s:
-          - v1.32
-          - v1.33
-          - v1.34
+        include:
+          - k8s: '1.30'
+            node_image: kindest/node:v1.30.10
+          - k8s: '1.31'
+            node_image: kindest/node:v1.31.6
+          - k8s: '1.32'
+            node_image: kindest/node:v1.32.2
     steps:
       - name: Checkout
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
 
-      - name: Create kind ${{ matrix.k8s }} cluster
-        uses: helm/kind-action@v1.10.0
+      - name: Set up Helm
+        uses: azure/setup-helm@v4
         with:
-          node_image: kindest/node:${{ matrix.k8s }}
+          version: ${{ env.HELM_VERSION }}
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+          check-latest: true
+
+      - name: Set up chart-testing
+        uses: helm/chart-testing-action@v2.7.0
+
+      - name: Create kind cluster (${{ matrix.k8s }})
+        uses: helm/kind-action@v1.12.0
+        with:
+          version: ${{ env.KIND_VERSION }}
+          node_image: ${{ matrix.node_image }}
+          cluster_name: chart-testing
+          wait: 120s
 
       - name: Run chart-testing (install)
-        uses: helm/chart-testing-action@v2.7.0
-        with:
-          command: install
-          config: .github/ct.yaml
+        run: ct install --config .github/ct.yaml
