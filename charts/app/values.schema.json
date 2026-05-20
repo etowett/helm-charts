@@ -1,0 +1,654 @@
+{
+  "$schema": "https://json-schema.org/draft-07/schema#",
+  "title": "Application Helm Chart Values",
+  "type": "object",
+  "properties": {
+    "replicaCount": {
+      "type": "integer",
+      "minimum": 0,
+      "description": "Number of replicas"
+    },
+    "image": {
+      "type": "object",
+      "required": ["repository"],
+      "properties": {
+        "repository": {
+          "type": "string",
+          "description": "Image repository"
+        },
+        "tag": {
+          "type": "string",
+          "description": "Image tag"
+        },
+        "pullPolicy": {
+          "type": "string",
+          "enum": ["Always", "IfNotPresent", "Never"],
+          "description": "Image pull policy"
+        }
+      }
+    },
+    "app": {
+      "type": "object",
+      "properties": {
+        "name": {
+          "type": "string",
+          "description": "Application name"
+        },
+        "env": {
+          "type": "string",
+          "description": "Application environment"
+        },
+        "country": {
+          "type": "string",
+          "description": "Application country/region"
+        }
+      }
+    },
+    "imagePullSecrets": {
+      "type": "array",
+      "items": {
+        "type": "object"
+      },
+      "description": "Image pull secrets"
+    },
+    "nameOverride": {
+      "type": "string",
+      "description": "Override chart name"
+    },
+    "fullnameOverride": {
+      "type": "string",
+      "description": "Override full name"
+    },
+    "serviceAccount": {
+      "type": "object",
+      "properties": {
+        "create": {
+          "type": "boolean",
+          "description": "Create service account"
+        },
+        "automount": {
+          "type": "boolean",
+          "description": "Automount service account token"
+        },
+        "annotations": {
+          "type": "object",
+          "description": "Service account annotations"
+        },
+        "name": {
+          "type": "string",
+          "description": "Service account name"
+        }
+      }
+    },
+    "podAnnotations": {
+      "type": "object",
+      "description": "Pod annotations"
+    },
+    "podLabels": {
+      "type": "object",
+      "description": "Pod labels"
+    },
+    "strategy": {
+      "type": "object",
+      "properties": {
+        "type": {
+          "type": "string",
+          "enum": ["RollingUpdate", "Recreate"],
+          "description": "Deployment strategy type"
+        },
+        "rollingUpdate": {
+          "type": "object",
+          "properties": {
+            "maxUnavailable": {
+              "oneOf": [
+                {"type": "integer"},
+                {"type": "string"}
+              ],
+              "description": "Max unavailable pods"
+            },
+            "maxSurge": {
+              "oneOf": [
+                {"type": "integer"},
+                {"type": "string"}
+              ],
+              "description": "Max surge pods"
+            }
+          }
+        }
+      }
+    },
+    "podSecurityContext": {
+      "type": "object",
+      "description": "Pod security context"
+    },
+    "securityContext": {
+      "type": "object",
+      "description": "Container security context"
+    },
+    "commands": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "description": "Container command"
+    },
+    "args": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "description": "Container args"
+    },
+    "port": {
+      "type": "object",
+      "description": "Container port configuration"
+    },
+    "service": {
+      "type": "object",
+      "properties": {
+        "type": {
+          "type": "string",
+          "enum": ["ClusterIP", "NodePort", "LoadBalancer"],
+          "description": "Service type"
+        },
+        "name": {
+          "type": "string",
+          "description": "Service port name"
+        },
+        "port": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 65535,
+          "description": "Service port"
+        },
+        "protocol": {
+          "type": "string",
+          "enum": ["TCP", "UDP", "SCTP"],
+          "description": "Service protocol"
+        }
+      }
+    },
+    "extraPorts": {
+      "type": "object",
+      "description": "Additional ports to expose"
+    },
+    "ingress": {
+      "type": "object",
+      "properties": {
+        "enabled": {
+          "type": "boolean",
+          "description": "Enable ingress"
+        },
+        "className": {
+          "type": "string",
+          "description": "Ingress class name"
+        },
+        "annotations": {
+          "type": "object",
+          "description": "Ingress annotations"
+        },
+        "hosts": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "host": {
+                "type": "string"
+              },
+              "paths": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "properties": {
+                    "path": {
+                      "type": "string"
+                    },
+                    "pathType": {
+                      "type": "string",
+                      "enum": ["Exact", "Prefix", "ImplementationSpecific"]
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "description": "Ingress hosts"
+        },
+        "tls": {
+          "type": "array",
+          "items": {
+            "type": "object"
+          },
+          "description": "Ingress TLS configuration"
+        }
+      }
+    },
+    "resources": {
+      "type": "object",
+      "description": "Resource limits and requests"
+    },
+    "livenessProbe": {
+      "type": ["object", "null"],
+      "description": "Liveness probe configuration"
+    },
+    "readinessProbe": {
+      "type": ["object", "null"],
+      "description": "Readiness probe configuration"
+    },
+    "autoscaling": {
+      "type": "object",
+      "properties": {
+        "enabled": {
+          "type": "boolean",
+          "description": "Enable autoscaling"
+        },
+        "minReplicas": {
+          "type": "integer",
+          "minimum": 1,
+          "description": "Minimum replicas"
+        },
+        "maxReplicas": {
+          "type": "integer",
+          "minimum": 1,
+          "description": "Maximum replicas"
+        },
+        "targetCPUUtilizationPercentage": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 100,
+          "description": "Target CPU utilization percentage"
+        },
+        "targetMemoryUtilizationPercentage": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 100,
+          "description": "Target memory utilization percentage"
+        }
+      }
+    },
+    "pdb": {
+      "type": "object",
+      "properties": {
+        "enabled": {
+          "type": "boolean",
+          "description": "Enable pod disruption budget"
+        },
+        "minAvailable": {
+          "oneOf": [
+            {"type": "integer"},
+            {"type": "string"}
+          ],
+          "description": "Minimum available pods"
+        }
+      }
+    },
+    "pvc": {
+      "type": "object",
+      "properties": {
+        "create": {
+          "type": "boolean",
+          "description": "Create PVC"
+        },
+        "claimName": {
+          "type": "string",
+          "description": "Override the generated PVC name"
+        },
+        "size": {
+          "type": "string",
+          "pattern": "^[0-9]+(Ei|Pi|Ti|Gi|Mi|Ki|E|P|T|G|M|K)?$",
+          "description": "Requested storage size as a Kubernetes resource quantity"
+        },
+        "accessModes": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "enum": ["ReadWriteOnce", "ReadOnlyMany", "ReadWriteMany", "ReadWriteOncePod"]
+          },
+          "description": "PVC access modes"
+        },
+        "storageClassName": {
+          "type": "string",
+          "description": "StorageClass name (empty uses the cluster default)"
+        },
+        "annotations": {
+          "type": "object",
+          "description": "Annotations for the PVC"
+        }
+      }
+    },
+    "volumes": {
+      "type": "array",
+      "items": {
+        "type": "object"
+      },
+      "description": "Additional volumes"
+    },
+    "volumeMounts": {
+      "type": "array",
+      "items": {
+        "type": "object"
+      },
+      "description": "Volume mounts"
+    },
+    "nodeSelector": {
+      "type": "object",
+      "description": "Node selector"
+    },
+    "tolerations": {
+      "type": "array",
+      "items": {
+        "type": "object"
+      },
+      "description": "Tolerations"
+    },
+    "affinity": {
+      "type": "object",
+      "description": "Affinity rules"
+    },
+    "env": {
+      "type": "object",
+      "description": "Environment variables"
+    },
+    "secretEnv": {
+      "type": "object",
+      "description": "Secret environment variables"
+    },
+    "externalSecrets": {
+      "type": "array",
+      "items": {
+        "type": "object"
+      },
+      "description": "External secrets"
+    },
+    "configMaps": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["name", "data"],
+        "properties": {
+          "name": {
+            "type": "string",
+            "description": "ConfigMap name"
+          },
+          "annotations": {
+            "type": "object",
+            "description": "ConfigMap annotations"
+          },
+          "data": {
+            "type": "object",
+            "description": "Key/value pairs to write into the ConfigMap"
+          }
+        }
+      },
+      "description": "Additional ConfigMaps to create"
+    },
+    "initContainer": {
+      "type": "object",
+      "properties": {
+        "enabled": {
+          "type": "boolean",
+          "description": "Enable init container"
+        },
+        "name": {
+          "type": "string",
+          "description": "Init container name"
+        },
+        "commands": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "Init container commands"
+        },
+        "args": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "Init container args"
+        },
+        "resources": {
+          "type": "object",
+          "description": "Init container resources"
+        },
+        "volumeMounts": {
+          "type": "array",
+          "items": {
+            "type": "object"
+          },
+          "description": "Init container volume mounts"
+        }
+      }
+    },
+    "sidecarimage": {
+      "type": ["object", "null"],
+      "description": "Sidecar container configuration"
+    },
+    "hook": {
+      "type": ["object", "null"],
+      "description": "Pre-install/pre-upgrade hook configuration"
+    },
+    "hookVolumes": {
+      "type": "array",
+      "items": {
+        "type": "object"
+      },
+      "description": "Hook volumes"
+    },
+    "hookVolumeMounts": {
+      "type": "array",
+      "items": {
+        "type": "object"
+      },
+      "description": "Hook volume mounts"
+    },
+    "celery": {
+      "type": "object",
+      "properties": {
+        "enabled": {
+          "type": "boolean",
+          "description": "Enable Celery"
+        },
+        "worker": {
+          "type": "object",
+          "properties": {
+            "enabled": {
+              "type": "boolean",
+              "description": "Enable worker"
+            },
+            "replicaCount": {
+              "type": "integer",
+              "minimum": 0,
+              "description": "Worker replica count"
+            },
+            "command": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              },
+              "description": "Worker command"
+            },
+            "args": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              },
+              "description": "Worker args"
+            },
+            "resources": {
+              "type": "object",
+              "description": "Worker resources"
+            },
+            "autoscaling": {
+              "type": "object",
+              "properties": {
+                "enabled": {
+                  "type": "boolean"
+                },
+                "minReplicas": {
+                  "type": "integer",
+                  "minimum": 1
+                },
+                "maxReplicas": {
+                  "type": "integer",
+                  "minimum": 1
+                },
+                "targetCPUUtilizationPercentage": {
+                  "type": "integer",
+                  "minimum": 1,
+                  "maximum": 100
+                },
+                "targetMemoryUtilizationPercentage": {
+                  "type": "integer",
+                  "minimum": 1,
+                  "maximum": 100
+                }
+              }
+            },
+            "nodeSelector": {
+              "type": "object"
+            },
+            "tolerations": {
+              "type": "array"
+            },
+            "affinity": {
+              "type": "object"
+            },
+            "podAnnotations": {
+              "type": "object"
+            },
+            "podLabels": {
+              "type": "object"
+            }
+          }
+        },
+        "beat": {
+          "type": "object",
+          "properties": {
+            "enabled": {
+              "type": "boolean",
+              "description": "Enable beat"
+            },
+            "command": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              },
+              "description": "Beat command"
+            },
+            "args": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              },
+              "description": "Beat args"
+            },
+            "resources": {
+              "type": "object",
+              "description": "Beat resources"
+            },
+            "nodeSelector": {
+              "type": "object"
+            },
+            "tolerations": {
+              "type": "array"
+            },
+            "affinity": {
+              "type": "object"
+            },
+            "podAnnotations": {
+              "type": "object"
+            },
+            "podLabels": {
+              "type": "object"
+            }
+          }
+        },
+        "flower": {
+          "type": "object",
+          "properties": {
+            "enabled": {
+              "type": "boolean",
+              "description": "Enable flower"
+            },
+            "replicaCount": {
+              "type": "integer",
+              "minimum": 0,
+              "description": "Flower replica count"
+            },
+            "command": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              },
+              "description": "Flower command"
+            },
+            "args": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              },
+              "description": "Flower args"
+            },
+            "resources": {
+              "type": "object",
+              "description": "Flower resources"
+            },
+            "service": {
+              "type": "object",
+              "properties": {
+                "port": {
+                  "type": "integer",
+                  "minimum": 1,
+                  "maximum": 65535
+                },
+                "type": {
+                  "type": "string",
+                  "enum": ["ClusterIP", "NodePort", "LoadBalancer"]
+                },
+                "name": {
+                  "type": "string"
+                }
+              }
+            },
+            "ingress": {
+              "type": "object",
+              "properties": {
+                "enabled": {
+                  "type": "boolean"
+                },
+                "className": {
+                  "type": "string"
+                },
+                "annotations": {
+                  "type": "object"
+                },
+                "hosts": {
+                  "type": "array"
+                },
+                "tls": {
+                  "type": "array"
+                }
+              }
+            },
+            "nodeSelector": {
+              "type": "object"
+            },
+            "tolerations": {
+              "type": "array"
+            },
+            "affinity": {
+              "type": "object"
+            },
+            "podAnnotations": {
+              "type": "object"
+            },
+            "podLabels": {
+              "type": "object"
+            }
+          }
+        }
+      }
+    }
+  }
+}

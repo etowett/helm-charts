@@ -1,0 +1,74 @@
+# Application with Sidecar Container Example
+# This example shows how to deploy a sidecar container alongside the main application
+
+replicaCount: 2
+
+image:
+  repository: myapp/web
+  tag: "1.0.0"
+  pullPolicy: IfNotPresent
+
+app:
+  name: mywebapp
+  env: production
+  country: us
+
+service:
+  type: ClusterIP
+  port: 8080
+
+# Main container configuration
+commands: ["python"]
+args: ["app.py"]
+
+resources:
+  limits:
+    cpu: 500m
+    memory: 512Mi
+  requests:
+    cpu: 250m
+    memory: 256Mi
+
+# Sidecar container (e.g., nginx reverse proxy)
+sidecarimage:
+  name: nginx-proxy
+  repository: nginx
+  tag: "1.21"
+  pullPolicy: IfNotPresent
+  ports:
+    - name: proxy
+      containerPort: 80
+      protocol: TCP
+  mounts:
+    - name: nginx-config
+      mountPath: /etc/nginx/nginx.conf
+      subPath: nginx.conf
+      readOnly: true
+  livenessProbe:
+    path: /nginx-health
+    port: 80
+    initialDelaySeconds: 10
+    periodSeconds: 5
+    timeoutSeconds: 3
+  readinessProbe:
+    path: /nginx-health
+    port: 80
+    initialDelaySeconds: 5
+    periodSeconds: 5
+    timeoutSeconds: 3
+  resources:
+    limits:
+      cpu: 200m
+      memory: 256Mi
+    requests:
+      cpu: 100m
+      memory: 128Mi
+
+# Configure volumes for the sidecar
+volumes:
+  - name: nginx-config
+    configMap:
+      name: nginx-config
+
+env:
+  APP_PORT: "8080"

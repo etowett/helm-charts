@@ -1,7 +1,11 @@
 # Patterns to ignore when building packages.
 # This supports shell glob matching, relative path matching, and
 # negation (prefixed with !). Only one pattern per line.
+
+# OS files
 .DS_Store
+Thumbs.db
+
 # Common VCS dirs
 .git/
 .gitignore
@@ -10,14 +14,35 @@
 .hg/
 .hgignore
 .svn/
+
 # Common backup files
 *.swp
 *.bak
 *.tmp
 *.orig
 *~
+*.md.bak
+
 # Various IDEs
 .project
 .idea/
 *.tmproj
 .vscode/
+*.code-workspace
+
+# CI/CD files
+.github/
+.gitlab-ci.yml
+.travis.yml
+.circleci/
+
+# Testing and development
+tests/
+test/
+*.test
+*.spec
+
+# Documentation and examples (optional - comment out if you want to include them)
+# examples/
+# README.md
+# CHANGELOG.md

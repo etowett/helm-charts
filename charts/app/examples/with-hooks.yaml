@@ -1,0 +1,51 @@
+# Application with Pre-Install Hooks Example
+# This example shows how to run commands before the application is deployed
+
+replicaCount: 3
+
+image:
+  repository: myapp/web
+  tag: "1.0.0"
+  pullPolicy: IfNotPresent
+
+app:
+  name: mywebapp
+  env: production
+  country: us
+
+service:
+  type: ClusterIP
+  port: 8080
+
+# Pre-install/pre-upgrade hooks
+hook:
+  name: pre-install-setup
+  image:
+    repository: myapp/web
+    tag: "1.0.0"
+    pullPolicy: IfNotPresent
+  commands:
+    - command: "python manage.py collectstatic --noinput"
+    - command: "python manage.py migrate --noinput"
+  backoffLimit: 3
+  ttlSecondsAfterFinished: 600
+  activeDeadlineSeconds: 300
+
+resources:
+  limits:
+    cpu: 500m
+    memory: 512Mi
+  requests:
+    cpu: 250m
+    memory: 256Mi
+
+env:
+  DATABASE_HOST: "postgres.default.svc.cluster.local"
+  DATABASE_PORT: "5432"
+  DATABASE_NAME: "myapp"
+  STATIC_ROOT: "/var/www/static"
+
+secretEnv:
+  DATABASE_PASSWORD:
+    name: db-credentials
+    key: password
