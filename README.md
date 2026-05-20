@@ -69,4 +69,4 @@ The `app` chart currently targets Kubernetes 1.29 and newer. CI validates manife
 
 ## License
 
-To be added.
+[MIT](LICENSE) © Eutychus Towett.
