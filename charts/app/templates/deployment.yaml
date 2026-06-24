@@ -87,6 +87,31 @@ spec:
             periodSeconds: {{ .Values.readinessProbe.periodSeconds }}
             timeoutSeconds: {{ .Values.readinessProbe.timeoutSeconds }}
           {{- end }}
+          {{- if .Values.startupProbe }}
+          startupProbe:
+            httpGet:
+              path: {{ .Values.startupProbe.path }}
+              port: {{ .Values.startupProbe.port }}
+              {{- with .Values.startupProbe.httpHeaders }}
+              httpHeaders:
+                {{- toYaml . | nindent 16 }}
+              {{- end }}
+            {{- with .Values.startupProbe.initialDelaySeconds }}
+            initialDelaySeconds: {{ . }}
+            {{- end }}
+            {{- with .Values.startupProbe.periodSeconds }}
+            periodSeconds: {{ . }}
+            {{- end }}
+            {{- with .Values.startupProbe.timeoutSeconds }}
+            timeoutSeconds: {{ . }}
+            {{- end }}
+            {{- with .Values.startupProbe.failureThreshold }}
+            failureThreshold: {{ . }}
+            {{- end }}
+            {{- with .Values.startupProbe.successThreshold }}
+            successThreshold: {{ . }}
+            {{- end }}
+          {{- end }}
           resources:
             {{- toYaml .Values.resources | nindent 12 }}
           {{- with .Values.volumeMounts }}
@@ -135,6 +160,27 @@ spec:
             initialDelaySeconds:  {{ .Values.sidecarimage.readinessProbe.initialDelaySeconds }}
             periodSeconds: {{ .Values.sidecarimage.readinessProbe.periodSeconds }}
             timeoutSeconds: {{ .Values.sidecarimage.readinessProbe.timeoutSeconds }}
+          {{- end }}
+          {{- if .Values.sidecarimage.startupProbe }}
+          startupProbe:
+            httpGet:
+              path: {{ .Values.sidecarimage.startupProbe.path }}
+              port: {{ .Values.sidecarimage.startupProbe.port }}
+            {{- with .Values.sidecarimage.startupProbe.initialDelaySeconds }}
+            initialDelaySeconds: {{ . }}
+            {{- end }}
+            {{- with .Values.sidecarimage.startupProbe.periodSeconds }}
+            periodSeconds: {{ . }}
+            {{- end }}
+            {{- with .Values.sidecarimage.startupProbe.timeoutSeconds }}
+            timeoutSeconds: {{ . }}
+            {{- end }}
+            {{- with .Values.sidecarimage.startupProbe.failureThreshold }}
+            failureThreshold: {{ . }}
+            {{- end }}
+            {{- with .Values.sidecarimage.startupProbe.successThreshold }}
+            successThreshold: {{ . }}
+            {{- end }}
           {{- end }}
           resources:
             {{- toYaml .Values.sidecarimage.resources | nindent 12 }}
@@ -191,4 +237,8 @@ spec:
       {{- with .Values.tolerations }}
       tolerations:
         {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.topologySpreadConstraints }}
+      topologySpreadConstraints:
+        {{- tpl (toYaml .) $ | nindent 8 }}
       {{- end }}

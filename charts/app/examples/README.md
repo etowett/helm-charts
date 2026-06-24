@@ -98,6 +98,37 @@ Application with a sidecar container:
 helm install my-app ./charts/app -f ./charts/app/examples/with-sidecar.yaml
 ```
 
+### 8. Application with Startup Probe
+**File:** `with-startup-probe.yaml`
+
+Slow-booting application (JVM, Next.js, Rails eager-load, Python ML
+imports). The startup probe defers liveness and the HPA "Ready" gate
+until the app reports healthy once, so:
+
+- A long boot does not trip `CrashLoopBackOff` under an aggressive
+  liveness probe.
+- The boot-time CPU burst is not mistaken for steady-state load by the
+  HPA, which would otherwise cascade into runaway scale-up.
+
+**Usage:**
+```bash
+helm install my-app ./charts/app -f ./charts/app/examples/with-startup-probe.yaml
+```
+
+### 9. Application with Topology Spread Constraints
+**File:** `with-topology-spread.yaml`
+
+Spread pods evenly across nodes and zones using
+`topologySpreadConstraints` — the modern Kubernetes-native replacement
+for `podAntiAffinity` (stable since 1.19, default-on since 1.25).
+String fields in the constraints are processed through `tpl`, so
+`{{ .Release.Name }}` and similar references resolve correctly.
+
+**Usage:**
+```bash
+helm install my-app ./charts/app -f ./charts/app/examples/with-topology-spread.yaml
+```
+
 ## Combining Examples
 
 You can combine multiple example files to use features from different examples:

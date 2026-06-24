@@ -1,0 +1,70 @@
+# Application with Startup Probe Example
+#
+# Use a startup probe for slow-starting applications: JVM warm-up,
+# Next.js initial build, Rails eager-load, Python apps that import
+# heavy ML libraries on boot, etc.
+#
+# Without a startup probe, the kubelet starts the liveness probe
+# countdown immediately. A slow boot then either:
+#   1. trips livenessProbe.failureThreshold and the kubelet restarts
+#      the container, producing CrashLoopBackOff, or
+#   2. completes after liveness has already counted enough failures
+#      that the deployment never reaches Ready and the HPA observes
+#      sustained "100% CPU usage" against a small request, triggering
+#      runaway scale-up.
+#
+# The startup probe lets the kubelet defer both liveness and the HPA's
+# "Ready" gate until the app reports healthy at least once. Effective
+# max boot time = periodSeconds * failureThreshold.
+#
+# Reference: https://kubernetes.io/docs/tasks/configure-pod-container/configure-liveness-readiness-startup-probes/#define-startup-probes
+
+replicaCount: 3
+
+image:
+  repository: myapp/web
+  tag: "1.0.0"
+  pullPolicy: IfNotPresent
+
+app:
+  name: slow-starting-app
+  env: production
+  country: us
+
+service:
+  type: ClusterIP
+  port: 8080
+
+resources:
+  limits:
+    cpu: 1000m
+    memory: 1Gi
+  requests:
+    cpu: 200m
+    memory: 512Mi
+
+# Aggressive liveness — safe to keep aggressive because the startup
+# probe below shields the boot window.
+livenessProbe:
+  path: /healthz
+  port: 8080
+  initialDelaySeconds: 0
+  periodSeconds: 10
+  timeoutSeconds: 3
+
+readinessProbe:
+  path: /readyz
+  port: 8080
+  initialDelaySeconds: 0
+  periodSeconds: 5
+  timeoutSeconds: 3
+
+# Startup probe: allow up to 5 minutes (10s * 30) to boot. Once the
+# probe succeeds once, the kubelet stops running it and starts the
+# liveness/readiness probes normally.
+startupProbe:
+  path: /healthz
+  port: 8080
+  periodSeconds: 10
+  failureThreshold: 30
+  timeoutSeconds: 3

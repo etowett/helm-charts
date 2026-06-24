@@ -30,4 +30,11 @@ spec:
           type: Utilization
           averageUtilization: {{ .Values.celery.worker.autoscaling.targetMemoryUtilizationPercentage }}
     {{- end }}
+    {{- with .Values.celery.worker.autoscaling.metrics }}
+    {{- toYaml . | nindent 4 }}
+    {{- end }}
+  {{- with .Values.celery.worker.autoscaling.behavior }}
+  behavior:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
 {{- end }}

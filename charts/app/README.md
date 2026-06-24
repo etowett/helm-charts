@@ -143,6 +143,15 @@ The following table lists the configurable parameters of the chart and their def
 | `readinessProbe.initialDelaySeconds` | Initial delay for readiness probe | - |
 | `readinessProbe.periodSeconds` | Period for readiness probe | - |
 | `readinessProbe.timeoutSeconds` | Timeout for readiness probe | - |
+| `startupProbe` | Startup probe configuration (empty `{}` disables the probe). Use for slow-starting apps so the liveness probe and HPA "Ready" gate are deferred until the app has reported healthy once. | `{}` |
+| `startupProbe.path` | Startup probe HTTP path | - |
+| `startupProbe.port` | Startup probe port | - |
+| `startupProbe.httpHeaders` | Startup probe HTTP headers | `[]` |
+| `startupProbe.initialDelaySeconds` | Seconds before first probe | - |
+| `startupProbe.periodSeconds` | Seconds between probes | - |
+| `startupProbe.timeoutSeconds` | Per-probe timeout in seconds | - |
+| `startupProbe.failureThreshold` | Consecutive failures before the container is restarted. Effective max boot time = `periodSeconds * failureThreshold`. | - |
+| `startupProbe.successThreshold` | Consecutive successes before the probe is considered started | - |
 
 ### Resources Parameters
 
@@ -157,8 +166,10 @@ The following table lists the configurable parameters of the chart and their def
 | `autoscaling.enabled` | Enable horizontal pod autoscaling | `false` |
 | `autoscaling.minReplicas` | Minimum number of replicas | `1` |
 | `autoscaling.maxReplicas` | Maximum number of replicas | `100` |
-| `autoscaling.targetCPUUtilizationPercentage` | Target CPU utilization | `80` |
-| `autoscaling.targetMemoryUtilizationPercentage` | Target memory utilization | `80` |
+| `autoscaling.targetCPUUtilizationPercentage` | Target average CPU utilization as a percentage of the container's CPU request. Values > 100 are valid when the request is intentionally small. | `80` |
+| `autoscaling.targetMemoryUtilizationPercentage` | Target average memory utilization (% of request) | `80` |
+| `autoscaling.metrics` | Extra raw HPA v2 metric specs appended to the generated `metrics:` list. Use for `averageValue` targets, Pods/Object/External metrics. | `[]` |
+| `autoscaling.behavior` | HPA v2 `behavior` block (`scaleUp` / `scaleDown` policies + `stabilizationWindowSeconds`). Strongly recommended for apps with bursty boot-time CPU. | `{}` |
 
 ### Pod Disruption Budget Parameters
 
@@ -188,6 +199,7 @@ The following table lists the configurable parameters of the chart and their def
 | `nodeSelector` | Node selector | `{}` |
 | `tolerations` | Tolerations | `[]` |
 | `affinity` | Affinity rules | `{}` |
+| `topologySpreadConstraints` | Pod topology spread constraints (preferred over `podAntiAffinity` since k8s 1.19+, default-on since 1.25). String fields are processed through `tpl`, so `{{ .Release.Name }}` resolves correctly. | `[]` |
 
 ### External Secrets Parameters
 
@@ -220,6 +232,7 @@ The following table lists the configurable parameters of the chart and their def
 | `sidecarimage.resources` | Sidecar resources | - |
 | `sidecarimage.livenessProbe` | Sidecar liveness probe | - |
 | `sidecarimage.readinessProbe` | Sidecar readiness probe | - |
+| `sidecarimage.startupProbe` | Sidecar startup probe (same shape as the main container's `startupProbe`) | - |
 
 ### Hook Parameters
 
@@ -255,11 +268,14 @@ The following table lists the configurable parameters of the chart and their def
 | `celery.worker.autoscaling.enabled` | Enable worker autoscaling | `false` |
 | `celery.worker.autoscaling.minReplicas` | Min worker replicas | `1` |
 | `celery.worker.autoscaling.maxReplicas` | Max worker replicas | `10` |
-| `celery.worker.autoscaling.targetCPUUtilizationPercentage` | Target CPU for worker | `80` |
-| `celery.worker.autoscaling.targetMemoryUtilizationPercentage` | Target memory for worker | `80` |
+| `celery.worker.autoscaling.targetCPUUtilizationPercentage` | Target CPU for worker (% of request, values > 100 allowed) | `80` |
+| `celery.worker.autoscaling.targetMemoryUtilizationPercentage` | Target memory for worker (% of request) | `80` |
+| `celery.worker.autoscaling.metrics` | Extra raw HPA v2 metric specs for the worker HPA | `[]` |
+| `celery.worker.autoscaling.behavior` | HPA v2 `behavior` block for the worker HPA | `{}` |
 | `celery.worker.nodeSelector` | Worker node selector | `{}` |
 | `celery.worker.tolerations` | Worker tolerations | `[]` |
 | `celery.worker.affinity` | Worker affinity | `{}` |
+| `celery.worker.topologySpreadConstraints` | Worker pod topology spread constraints (processed through `tpl`) | `[]` |
 | `celery.worker.podAnnotations` | Worker pod annotations | `{}` |
 | `celery.worker.podLabels` | Worker pod labels | `{}` |
 
@@ -274,6 +290,7 @@ The following table lists the configurable parameters of the chart and their def
 | `celery.beat.nodeSelector` | Beat node selector | `{}` |
 | `celery.beat.tolerations` | Beat tolerations | `[]` |
 | `celery.beat.affinity` | Beat affinity | `{}` |
+| `celery.beat.topologySpreadConstraints` | Beat pod topology spread constraints (processed through `tpl`) | `[]` |
 | `celery.beat.podAnnotations` | Beat pod annotations | `{}` |
 | `celery.beat.podLabels` | Beat pod labels | `{}` |
 
@@ -297,6 +314,7 @@ The following table lists the configurable parameters of the chart and their def
 | `celery.flower.nodeSelector` | Flower node selector | `{}` |
 | `celery.flower.tolerations` | Flower tolerations | `[]` |
 | `celery.flower.affinity` | Flower affinity | `{}` |
+| `celery.flower.topologySpreadConstraints` | Flower pod topology spread constraints (processed through `tpl`) | `[]` |
 | `celery.flower.podAnnotations` | Flower pod annotations | `{}` |
 | `celery.flower.podLabels` | Flower pod labels | `{}` |
 
@@ -512,6 +530,18 @@ sidecarimage:
 ```
 
 ## Upgrading
+
+### To 1.5.0
+
+Backward-compatible release. Existing values files render the same manifests they did on 1.4.0. New opt-in features:
+
+- `startupProbe` on the main container and on `sidecarimage`. Recommended for any app whose boot time is comparable to or larger than `livenessProbe.failureThreshold * livenessProbe.periodSeconds`.
+- `autoscaling.behavior` exposes the HPAv2 `behavior` block. Strongly recommended whenever boot CPU dwarfs steady-state CPU (Next.js, JVM, Rails eager-load) — without it, a single booting pod's CPU burst can cascade the HPA into runaway scale-up. Mirrored on `celery.worker.autoscaling.behavior`.
+- `autoscaling.metrics` accepts a raw list of HPAv2 metric specs (appended to the generated `metrics:`). Use for absolute (`averageValue`) targets and for Pods/Object/External metrics. Mirrored on `celery.worker.autoscaling.metrics`.
+- `topologySpreadConstraints` is now wired on the main deployment and on every celery deployment. Prefer this over `affinity.podAntiAffinity` for new deployments.
+- The schema `maximum` on `targetCPUUtilizationPercentage` / `targetMemoryUtilizationPercentage` (and the celery worker equivalents) was raised from `100` to `1000` to reflect that utilization is a percentage of the container's *request*, not of node capacity. Existing values are unchanged.
+
+See `examples/with-startup-probe.yaml`, `examples/with-topology-spread.yaml`, and the updated `examples/with-autoscaling.yaml` for ready-to-use snippets.
 
 ### To 1.4.0
 

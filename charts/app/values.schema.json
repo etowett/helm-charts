@@ -235,6 +235,23 @@
       "type": ["object", "null"],
       "description": "Readiness probe configuration"
     },
+    "startupProbe": {
+      "type": ["object", "null"],
+      "description": "Startup probe configuration. Empty object disables the probe. Effective max boot time = periodSeconds * failureThreshold.",
+      "properties": {
+        "path": { "type": "string", "description": "HTTP path for the startup probe" },
+        "port": {
+          "oneOf": [{ "type": "integer", "minimum": 1, "maximum": 65535 }, { "type": "string" }],
+          "description": "Port number or named port"
+        },
+        "httpHeaders": { "type": "array", "items": { "type": "object" } },
+        "initialDelaySeconds": { "type": "integer", "minimum": 0 },
+        "periodSeconds": { "type": "integer", "minimum": 1 },
+        "timeoutSeconds": { "type": "integer", "minimum": 1 },
+        "failureThreshold": { "type": "integer", "minimum": 1 },
+        "successThreshold": { "type": "integer", "minimum": 1 }
+      }
+    },
     "autoscaling": {
       "type": "object",
       "properties": {
@@ -255,14 +272,23 @@
         "targetCPUUtilizationPercentage": {
           "type": "integer",
           "minimum": 1,
-          "maximum": 100,
-          "description": "Target CPU utilization percentage"
+          "maximum": 1000,
+          "description": "Target CPU utilization as a percentage of the container's CPU request. Values >100 are valid and useful when the request is intentionally small."
         },
         "targetMemoryUtilizationPercentage": {
           "type": "integer",
           "minimum": 1,
-          "maximum": 100,
-          "description": "Target memory utilization percentage"
+          "maximum": 1000,
+          "description": "Target memory utilization as a percentage of the container's memory request"
+        },
+        "metrics": {
+          "type": "array",
+          "items": { "type": "object" },
+          "description": "Extra raw HPA v2 metric entries appended to the generated metrics list"
+        },
+        "behavior": {
+          "type": "object",
+          "description": "HPA v2 behavior block controlling scaleUp/scaleDown policies and stabilization windows"
         }
       }
     },
@@ -344,6 +370,11 @@
     "affinity": {
       "type": "object",
       "description": "Affinity rules"
+    },
+    "topologySpreadConstraints": {
+      "type": "array",
+      "items": { "type": "object" },
+      "description": "Pod topology spread constraints (preferred over podAntiAffinity since k8s 1.19+). String fields are processed through `tpl`."
     },
     "env": {
       "type": "object",
@@ -496,12 +527,21 @@
                 "targetCPUUtilizationPercentage": {
                   "type": "integer",
                   "minimum": 1,
-                  "maximum": 100
+                  "maximum": 1000
                 },
                 "targetMemoryUtilizationPercentage": {
                   "type": "integer",
                   "minimum": 1,
-                  "maximum": 100
+                  "maximum": 1000
+                },
+                "metrics": {
+                  "type": "array",
+                  "items": { "type": "object" },
+                  "description": "Extra raw HPA v2 metric specs for the worker HPA"
+                },
+                "behavior": {
+                  "type": "object",
+                  "description": "HPA v2 behavior block for the worker HPA"
                 }
               }
             },
@@ -513,6 +553,11 @@
             },
             "affinity": {
               "type": "object"
+            },
+            "topologySpreadConstraints": {
+              "type": "array",
+              "items": { "type": "object" },
+              "description": "Worker pod topology spread constraints"
             },
             "podAnnotations": {
               "type": "object"
@@ -555,6 +600,11 @@
             },
             "affinity": {
               "type": "object"
+            },
+            "topologySpreadConstraints": {
+              "type": "array",
+              "items": { "type": "object" },
+              "description": "Beat pod topology spread constraints"
             },
             "podAnnotations": {
               "type": "object"
@@ -639,6 +689,11 @@
             },
             "affinity": {
               "type": "object"
+            },
+            "topologySpreadConstraints": {
+              "type": "array",
+              "items": { "type": "object" },
+              "description": "Flower pod topology spread constraints"
             },
             "podAnnotations": {
               "type": "object"

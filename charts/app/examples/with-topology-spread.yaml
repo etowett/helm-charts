@@ -1,0 +1,64 @@
+# Application with Topology Spread Constraints Example
+#
+# topologySpreadConstraints is the modern Kubernetes-native way to
+# spread pods evenly across failure domains. It has been stable since
+# v1.19 and the default Pod Topology Spread scheduler plugin has been
+# on by default since v1.25.
+#
+# Prefer it over `affinity.podAntiAffinity` for new deployments:
+#   - More expressive (maxSkew, multiple domains in one constraint)
+#   - Cheaper to evaluate at scheduling time
+#   - First-class support for `whenUnsatisfiable: ScheduleAnyway`
+#     (soft) vs `DoNotSchedule` (hard) per constraint
+#
+# References:
+#   - https://kubernetes.io/docs/concepts/scheduling-eviction/topology-spread-constraints/
+#   - https://kubernetes.io/blog/2020/05/introducing-podtopologyspread/
+
+replicaCount: 6
+
+image:
+  repository: myapp/web
+  tag: "1.0.0"
+  pullPolicy: IfNotPresent
+
+app:
+  name: spread-app
+  env: production
+  country: us
+
+service:
+  type: ClusterIP
+  port: 8080
+
+resources:
+  requests:
+    cpu: 100m
+    memory: 128Mi
+  limits:
+    cpu: 500m
+    memory: 256Mi
+
+# Spread across both nodes and zones. Soft (ScheduleAnyway) so the
+# scheduler still places pods if the cluster cannot satisfy the
+# constraint — useful for clusters with heterogeneous node sizes
+# where a hard constraint would block scheduling.
+#
+# The labelSelector here uses the chart's standard selector labels.
+# String fields are processed through `tpl`, so `{{ .Release.Name }}`
+# resolves correctly.
+topologySpreadConstraints:
+  - maxSkew: 1
+    topologyKey: kubernetes.io/hostname
+    whenUnsatisfiable: ScheduleAnyway
+    labelSelector:
+      matchLabels:
+        app.kubernetes.io/name: app
+        app.kubernetes.io/instance: "{{ .Release.Name }}"
+  - maxSkew: 1
+    topologyKey: topology.kubernetes.io/zone
+    whenUnsatisfiable: ScheduleAnyway
+    labelSelector:
+      matchLabels:
+        app.kubernetes.io/name: app
+        app.kubernetes.io/instance: "{{ .Release.Name }}"

@@ -5,6 +5,24 @@ All notable changes to this Helm chart will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.5.0] - 2026-06-24
+
+### Added
+- `startupProbe` support on the main container and the optional `sidecarimage` container. Use this for slow-starting apps (JVM, Next.js, Rails eager-load) so the liveness probe — and the HPA's "Ready" gate — do not run during the boot window. Closes the long-standing `Future Plans` item.
+- `autoscaling.behavior` exposes the HorizontalPodAutoscaler v2 `behavior` block (`scaleUp` / `scaleDown` policies and `stabilizationWindowSeconds`). Without it, a single boot CPU burst against a small request can cascade into runaway scale-up. Mirrored on `celery.worker.autoscaling.behavior`.
+- `autoscaling.metrics` accepts a raw list of HPAv2 metric specs that is appended to the generated `metrics:` list. Use for absolute (`averageValue`) targets, Pods/Object/External metrics. Mirrored on `celery.worker.autoscaling.metrics`.
+- `topologySpreadConstraints` on the main deployment and on each celery deployment (`celery.worker`, `celery.beat`, `celery.flower`). String fields are processed through `tpl`, so `{{ .Release.Name }}` and similar template references resolve correctly. Closes the `Future Plans` item; preferred over `podAntiAffinity` since k8s 1.19 (default-on since 1.25).
+- New examples:
+  - `examples/with-startup-probe.yaml` — slow-booting app pattern.
+  - `examples/with-topology-spread.yaml` — modern node/zone spread.
+- `examples/with-autoscaling.yaml` extended to demonstrate `autoscaling.behavior`, `autoscaling.metrics`, and `topologySpreadConstraints`.
+
+### Changed
+- `autoscaling.targetCPUUtilizationPercentage` and `autoscaling.targetMemoryUtilizationPercentage` schema `maximum` raised from `100` to `1000` (and same for `celery.worker.autoscaling.*`). Utilization is a percentage of the container's resource *request*, and values above 100 are valid — common when the request is intentionally small and you want to absorb short bursts above the request before scaling out. Existing values are unchanged.
+
+### Notes
+All v1.5.0 additions are opt-in and default to empty/zero values, so existing values files render the same Kubernetes manifests as on 1.4.0. No migration is required.
+
 ## [1.4.0] - 2026-05-20
 
 ### Changed (breaking)
@@ -148,8 +166,6 @@ All changes in 1.0.0 through 1.3.x were backward compatible.
 
 ## Future Plans
 
-- Support for custom startup probes (Kubernetes 1.20+)
-- Support for topologySpreadConstraints
 - NetworkPolicy template
 - ServiceMonitor template for Prometheus Operator
 - Support for multiple init containers
