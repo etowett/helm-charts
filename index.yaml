@@ -3,6 +3,32 @@ entries:
   app:
   - apiVersion: v2
     appVersion: 1.0.0
+    created: "2026-06-26T10:28:09.789764818Z"
+    description: A Common Helm chart for Deploying Applications in kubernetes
+    digest: 5053b3b64f7d96e260c44f0d10af92f0361b9d73154a33b67cb34a8699a4d518
+    home: https://github.com/etowett/helm-charts
+    keywords:
+    - kubernetes
+    - deployment
+    - application
+    - celery
+    - worker
+    - web-app
+    - microservices
+    kubeVersion: '>=1.29.0-0'
+    maintainers:
+    - email: ektowett@gmail.com
+      name: etowett
+      url: https://github.com/etowett
+    name: app
+    sources:
+    - https://github.com/etowett/helm-charts
+    type: application
+    urls:
+    - https://github.com/etowett/helm-charts/releases/download/app-1.5.0/app-1.5.0.tgz
+    version: 1.5.0
+  - apiVersion: v2
+    appVersion: 1.0.0
     created: "2026-05-20T10:22:53.234092529Z"
     description: A Common Helm chart for Deploying Applications in kubernetes
     digest: a35d43c6e8edc926bf58af93104beb35737cc86e2c19f8fdf9bd56a55b89f30e
@@ -217,4 +243,4 @@ entries:
     urls:
     - https://github.com/etowett/helm-charts/releases/download/app-0.1.0/app-0.1.0.tgz
     version: 0.1.0
-generated: "2026-05-20T10:22:53.234266794Z"
+generated: "2026-06-26T10:28:09.789840963Z"
