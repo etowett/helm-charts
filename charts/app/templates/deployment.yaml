@@ -166,6 +166,10 @@ spec:
             httpGet:
               path: {{ .Values.sidecarimage.startupProbe.path }}
               port: {{ .Values.sidecarimage.startupProbe.port }}
+              {{- with .Values.sidecarimage.startupProbe.httpHeaders }}
+              httpHeaders:
+                {{- toYaml . | nindent 16 }}
+              {{- end }}
             {{- with .Values.sidecarimage.startupProbe.initialDelaySeconds }}
             initialDelaySeconds: {{ . }}
             {{- end }}

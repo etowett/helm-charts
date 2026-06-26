@@ -93,6 +93,8 @@ readinessProbe:
 # Topology spread is the modern Kubernetes-native way to spread pods.
 # Prefer this over `podAntiAffinity` for new deployments. labelSelector
 # values are processed through `tpl`, so {{ .Release.Name }} works.
+# The `DoesNotExist` expression scopes the spread to the main app's pods
+# so any celery replicas (which share name/instance) are not counted.
 topologySpreadConstraints:
   - maxSkew: 1
     topologyKey: kubernetes.io/hostname
@@ -101,6 +103,9 @@ topologySpreadConstraints:
       matchLabels:
         app.kubernetes.io/name: app
         app.kubernetes.io/instance: "{{ .Release.Name }}"
+      matchExpressions:
+        - key: app.kubernetes.io/component
+          operator: DoesNotExist
   - maxSkew: 1
     topologyKey: topology.kubernetes.io/zone
     whenUnsatisfiable: ScheduleAnyway
@@ -108,6 +113,9 @@ topologySpreadConstraints:
       matchLabels:
         app.kubernetes.io/name: app
         app.kubernetes.io/instance: "{{ .Release.Name }}"
+      matchExpressions:
+        - key: app.kubernetes.io/component
+          operator: DoesNotExist
 
 # Node affinity to prefer specific node types (kept for backward-compat).
 # topologySpreadConstraints above handles the "spread evenly" concern.
