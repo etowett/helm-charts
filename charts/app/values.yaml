@@ -236,6 +236,35 @@ livenessProbe: {}
 ##
 readinessProbe: {}
 
+## Startup probe configuration. Use this for slow-starting applications
+## (e.g. JVM warm-up, Next.js initial build, Rails eager load) so that
+## the kubelet does not start running the liveness probe — or the
+## `failureThreshold` countdown — until the app has reported ready at
+## least once. Without it, a slow boot can cause CrashLoopBackOff under
+## an aggressive liveness probe, or trigger HPA cascades when the
+## boot CPU burst is mistaken for steady-state load.
+##
+## Effective max boot time = periodSeconds * failureThreshold.
+##
+## @param startupProbe Startup probe configuration (empty `{}` disables the probe)
+## @param startupProbe.path HTTP path for the startup probe
+## @param startupProbe.port Port for the startup probe
+## @param startupProbe.httpHeaders Optional HTTP headers for the startup probe
+## @param startupProbe.initialDelaySeconds Seconds before the first probe
+## @param startupProbe.periodSeconds Seconds between probes
+## @param startupProbe.timeoutSeconds Per-probe timeout in seconds
+## @param startupProbe.failureThreshold Consecutive failures before the container is restarted
+## @param startupProbe.successThreshold Consecutive successes before the probe is considered started
+## Example:
+## startupProbe:
+##   path: /healthz
+##   port: 8080
+##   periodSeconds: 10
+##   failureThreshold: 30   # allow up to 5 minutes to boot
+##   timeoutSeconds: 3
+##
+startupProbe: {}
+
 ## @section Resource parameters
 ##
 
@@ -270,8 +299,42 @@ resources:
 ## @param autoscaling.enabled Enable Horizontal Pod Autoscaler
 ## @param autoscaling.minReplicas Minimum number of replicas
 ## @param autoscaling.maxReplicas Maximum number of replicas
-## @param autoscaling.targetCPUUtilizationPercentage Target CPU utilization percentage
-## @param autoscaling.targetMemoryUtilizationPercentage Target memory utilization percentage
+## @param autoscaling.targetCPUUtilizationPercentage Target average CPU utilization as a percentage of the container's CPU request. Values > 100 are valid and useful when the request is intentionally small (e.g. you want to allow short bursts above the request before scaling out).
+## @param autoscaling.targetMemoryUtilizationPercentage Target average memory utilization as a percentage of the container's memory request
+## @param autoscaling.metrics Extra raw HPA v2 metric entries appended to the generated `metrics:` list. Use for absolute (`averageValue`) targets, Pods/Object/External metrics. Each entry is a full metric spec.
+## @param autoscaling.behavior HPA v2 `behavior` block controlling scaleUp/scaleDown policies and stabilization windows. Strongly recommended for apps with bursty boot-time CPU (e.g. JVM, Next.js) so that boot bursts do not cascade into runaway scale-up.
+## Example:
+## autoscaling:
+##   enabled: true
+##   minReplicas: 3
+##   maxReplicas: 20
+##   targetCPUUtilizationPercentage: 80
+##   targetMemoryUtilizationPercentage: 80
+##   metrics:
+##     - type: Pods
+##       pods:
+##         metric:
+##           name: http_requests_per_second
+##         target:
+##           type: AverageValue
+##           averageValue: "100"
+##   behavior:
+##     scaleUp:
+##       stabilizationWindowSeconds: 60
+##       policies:
+##         - type: Percent
+##           value: 50
+##           periodSeconds: 60
+##         - type: Pods
+##           value: 2
+##           periodSeconds: 60
+##       selectPolicy: Max
+##     scaleDown:
+##       stabilizationWindowSeconds: 300
+##       policies:
+##         - type: Percent
+##           value: 10
+##           periodSeconds: 60
 ##
 autoscaling:
   enabled: false
@@ -279,6 +342,8 @@ autoscaling:
   maxReplicas: 100
   targetCPUUtilizationPercentage: 80
   targetMemoryUtilizationPercentage: 80
+  metrics: []
+  behavior: {}
 
 ## @section Pod Disruption Budget parameters
 ##
@@ -375,6 +440,26 @@ tolerations: []
 ##
 affinity: {}
 
+## @param topologySpreadConstraints Pod topology spread constraints (preferred over `podAntiAffinity` since k8s 1.19+). Use to spread pods evenly across nodes, zones, or other failure domains. Values are processed through `tpl` so you can reference `{{ .Release.Name }}` etc inside string fields.
+## Example:
+## topologySpreadConstraints:
+##   - maxSkew: 1
+##     topologyKey: kubernetes.io/hostname
+##     whenUnsatisfiable: ScheduleAnyway
+##     labelSelector:
+##       matchLabels:
+##         app.kubernetes.io/name: app
+##         app.kubernetes.io/instance: "{{ .Release.Name }}"
+##   - maxSkew: 1
+##     topologyKey: topology.kubernetes.io/zone
+##     whenUnsatisfiable: ScheduleAnyway
+##     labelSelector:
+##       matchLabels:
+##         app.kubernetes.io/name: app
+##         app.kubernetes.io/instance: "{{ .Release.Name }}"
+##
+topologySpreadConstraints: []
+
 ## @section Environment parameters
 ##
 
@@ -466,6 +551,11 @@ initContainer:
 ##     limits:
 ##       cpu: 200m
 ##       memory: 256Mi
+##   startupProbe:
+##     path: /healthz
+##     port: 8080
+##     periodSeconds: 5
+##     failureThreshold: 30
 ##
 sidecarimage: {}
 
@@ -524,9 +614,12 @@ celery:
   ## @param celery.worker.args Worker arguments
   ## @param celery.worker.resources Worker resource limits and requests
   ## @param celery.worker.autoscaling Worker autoscaling configuration
+  ## @param celery.worker.autoscaling.metrics Extra raw HPA v2 metric specs (same shape as `autoscaling.metrics`)
+  ## @param celery.worker.autoscaling.behavior HPA v2 `behavior` block for the worker HPA
   ## @param celery.worker.nodeSelector Worker node selector
   ## @param celery.worker.tolerations Worker tolerations
   ## @param celery.worker.affinity Worker affinity
+  ## @param celery.worker.topologySpreadConstraints Worker topology spread constraints (processed through `tpl`)
   ## @param celery.worker.podAnnotations Worker pod annotations
   ## @param celery.worker.podLabels Worker pod labels
   ##
@@ -542,9 +635,12 @@ celery:
       maxReplicas: 10
       targetCPUUtilizationPercentage: 80
       targetMemoryUtilizationPercentage: 80
+      metrics: []
+      behavior: {}
     nodeSelector: {}
     tolerations: []
     affinity: {}
+    topologySpreadConstraints: []
     podAnnotations: {}
     podLabels: {}
 
@@ -556,6 +652,7 @@ celery:
   ## @param celery.beat.nodeSelector Beat node selector
   ## @param celery.beat.tolerations Beat tolerations
   ## @param celery.beat.affinity Beat affinity
+  ## @param celery.beat.topologySpreadConstraints Beat topology spread constraints (processed through `tpl`)
   ## @param celery.beat.podAnnotations Beat pod annotations
   ## @param celery.beat.podLabels Beat pod labels
   ##
@@ -567,6 +664,7 @@ celery:
     nodeSelector: {}
     tolerations: []
     affinity: {}
+    topologySpreadConstraints: []
     podAnnotations: {}
     podLabels: {}
 
@@ -581,6 +679,7 @@ celery:
   ## @param celery.flower.nodeSelector Flower node selector
   ## @param celery.flower.tolerations Flower tolerations
   ## @param celery.flower.affinity Flower affinity
+  ## @param celery.flower.topologySpreadConstraints Flower topology spread constraints (processed through `tpl`)
   ## @param celery.flower.podAnnotations Flower pod annotations
   ## @param celery.flower.podLabels Flower pod labels
   ##
@@ -612,5 +711,6 @@ celery:
     nodeSelector: {}
     tolerations: []
     affinity: {}
+    topologySpreadConstraints: []
     podAnnotations: {}
     podLabels: {}
