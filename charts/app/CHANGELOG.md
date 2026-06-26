@@ -5,6 +5,16 @@ All notable changes to this Helm chart will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.5.1] - 2026-06-26
+
+### Fixed
+- `sidecarimage.startupProbe` now renders `httpHeaders` (it was silently dropped, despite the README stating the sidecar probe has the same shape as the main container's `startupProbe`).
+- `startupProbe.successThreshold` schema constrained to `1`. Kubernetes only permits `1` for startup probes; any other value was previously accepted by `helm`/CI and rejected only at apply time.
+
+### Changed
+- `examples/with-topology-spread.yaml` and `examples/with-autoscaling.yaml` scope their `topologySpreadConstraints` to the main app's pods via a `app.kubernetes.io/component DoesNotExist` expression, so co-deployed celery pods (which share `name`/`instance`) are not counted in the skew.
+- `examples/celery-workers.yaml` now exercises `celery.worker.autoscaling.metrics`, `celery.worker.autoscaling.behavior`, and `celery.worker.topologySpreadConstraints`, so CI renders and validates those paths.
+
 ## [1.5.0] - 2026-06-24
 
 ### Added

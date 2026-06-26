@@ -249,7 +249,7 @@
         "periodSeconds": { "type": "integer", "minimum": 1 },
         "timeoutSeconds": { "type": "integer", "minimum": 1 },
         "failureThreshold": { "type": "integer", "minimum": 1 },
-        "successThreshold": { "type": "integer", "minimum": 1 }
+        "successThreshold": { "type": "integer", "const": 1, "description": "Must be 1 for a startup probe; Kubernetes rejects any other value at apply time." }
       }
     },
     "autoscaling": {

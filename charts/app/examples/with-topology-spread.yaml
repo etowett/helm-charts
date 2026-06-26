@@ -47,6 +47,12 @@ resources:
 # The labelSelector here uses the chart's standard selector labels.
 # String fields are processed through `tpl`, so `{{ .Release.Name }}`
 # resolves correctly.
+#
+# NOTE: celery pods (worker/beat/flower) share `app.kubernetes.io/name`
+# and `app.kubernetes.io/instance` with the main deployment and only add
+# `app.kubernetes.io/component`. The `DoesNotExist` expression below
+# scopes the spread to the main app's own pods so celery replicas are not
+# counted in the skew when celery is enabled in the same release.
 topologySpreadConstraints:
   - maxSkew: 1
     topologyKey: kubernetes.io/hostname
@@ -55,6 +61,9 @@ topologySpreadConstraints:
       matchLabels:
         app.kubernetes.io/name: app
         app.kubernetes.io/instance: "{{ .Release.Name }}"
+      matchExpressions:
+        - key: app.kubernetes.io/component
+          operator: DoesNotExist
   - maxSkew: 1
     topologyKey: topology.kubernetes.io/zone
     whenUnsatisfiable: ScheduleAnyway
@@ -62,3 +71,6 @@ topologySpreadConstraints:
       matchLabels:
         app.kubernetes.io/name: app
         app.kubernetes.io/instance: "{{ .Release.Name }}"
+      matchExpressions:
+        - key: app.kubernetes.io/component
+          operator: DoesNotExist

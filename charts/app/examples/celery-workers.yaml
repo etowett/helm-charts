@@ -70,6 +70,36 @@ celery:
       maxReplicas: 10
       targetCPUUtilizationPercentage: 70
       targetMemoryUtilizationPercentage: 80
+      # Extra raw HPA v2 metric specs, appended to the generated metrics
+      # list. Here: scale on Celery queue depth (requires a custom-metrics
+      # adapter exposing the metric).
+      metrics:
+        - type: Pods
+          pods:
+            metric:
+              name: celery_queue_depth
+            target:
+              type: AverageValue
+              averageValue: "30"
+      # HPA v2 behavior: let scale-down breathe so a brief drop in queue
+      # depth does not immediately tear down warm workers.
+      behavior:
+        scaleDown:
+          stabilizationWindowSeconds: 300
+          policies:
+            - type: Percent
+              value: 25
+              periodSeconds: 60
+    # Spread workers across nodes. Scoped to the worker component so the
+    # skew is computed over worker pods only.
+    topologySpreadConstraints:
+      - maxSkew: 1
+        topologyKey: kubernetes.io/hostname
+        whenUnsatisfiable: ScheduleAnyway
+        labelSelector:
+          matchLabels:
+            app.kubernetes.io/instance: "{{ .Release.Name }}"
+            app.kubernetes.io/component: celery-worker
     podAnnotations:
       prometheus.io/scrape: "true"
       prometheus.io/port: "9090"
