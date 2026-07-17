@@ -1,0 +1,74 @@
+# A security-hardened cronjob: Restricted Pod Security Standards, no mounted SA token, a
+# default-deny-then-allow-DNS-and-HTTPS NetworkPolicy, External Secrets instead of inline
+# secrets, and minimal RBAC. Suitable for workloads under strict security requirements.
+image:
+  repository: myrepo/worker
+  tag: "v1.2.3"
+  pullPolicy: IfNotPresent
+
+serviceAccount:
+  create: true
+  automount: false
+
+podSecurityContext:
+  runAsNonRoot: true
+  runAsUser: 65534
+  runAsGroup: 65534
+  fsGroup: 65534
+  seccompProfile:
+    type: RuntimeDefault
+
+securityContext:
+  allowPrivilegeEscalation: false
+  readOnlyRootFilesystem: true
+  runAsNonRoot: true
+  capabilities:
+    drop: ["ALL"]
+
+# Pull DB credentials from a secret store rather than committing them to values.
+externalSecrets:
+  - name: cron-db
+    refreshInterval: 1h
+    secretStoreRefName: gcp-secret-store
+    secretStoreRefKind: ClusterSecretStore
+    targetName: cron-db
+    dataKey: prod/cron/db
+
+# Minimal RBAC: allow the cron to read its own jobs.
+rbac:
+  enabled: true
+  rules:
+    - apiGroups: ["batch"]
+      resources: ["jobs"]
+      verbs: ["get", "list", "watch"]
+
+# Default-deny egress except DNS and HTTPS.
+networkPolicy:
+  enabled: true
+  policyTypes:
+    - Ingress
+    - Egress
+  ingress: []
+  egress:
+    - to:
+        - namespaceSelector: {}
+      ports:
+        - protocol: UDP
+          port: 53
+        - protocol: TCP
+          port: 53
+    - ports:
+        - protocol: TCP
+          port: 443
+
+cronjobs:
+  reconcile:
+    schedule: "*/15 * * * *"
+    commands: ["/bin/sh"]
+    args: ["-c", "bin/reconcile"]
+    envFrom:
+      - secretRef:
+          name: cron-db
+    job:
+      backoffLimit: 3
+      activeDeadlineSeconds: 600

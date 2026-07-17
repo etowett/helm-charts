@@ -1,0 +1,51 @@
+apiVersion: v2
+name: cron
+description: A Helm chart for running scheduled jobs on Kubernetes. One release defines many CronJobs that share a common pod spec, with per-job overrides.
+
+# A chart can be either an 'application' or a 'library' chart.
+#
+# Application charts are a collection of templates that can be packaged into versioned archives
+# to be deployed.
+#
+# Library charts provide useful utilities or functions for the chart developer. They're included as
+# a dependency of application charts to inject those utilities and functions into the rendering
+# pipeline. Library charts do not define any templates and therefore cannot be deployed.
+type: application
+
+# This is the chart version. This version number should be incremented each time you make changes
+# to the chart and its templates, including the app version.
+# Versions are expected to follow Semantic Versioning (https://semver.org/)
+version: "0.1.0"
+
+# This is the version number of the application being deployed. This version number should be
+# incremented each time you make changes to the application. Versions are not expected to
+# follow Semantic Versioning. They should reflect the version the application is using.
+# It is recommended to use it with quotes.
+appVersion: "1.0.0"
+
+# Kubernetes version constraint. Matches charts/app and what CI exercises (kind install on
+# 1.33-1.35, manifest validation up to 1.36). 1.29 is the floor because sidecars render as
+# native sidecars (init containers with restartPolicy: Always), stable in 1.29.
+kubeVersion: ">=1.29.0-0"
+
+# A list of keywords about this project
+keywords:
+  - kubernetes
+  - cron
+  - cronjob
+  - scheduled
+  - batch
+  - job
+
+# The URL of this projects home page
+home: https://github.com/etowett/helm-charts
+
+# A list of URLs to source code for this project
+sources:
+  - https://github.com/etowett/helm-charts
+
+# A list of the chart maintainers
+maintainers:
+  - name: etowett
+    email: ektowett@gmail.com
+    url: https://github.com/etowett

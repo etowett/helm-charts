@@ -1,0 +1,32 @@
+{{- if .Values.pvc.enabled -}}
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: {{ .Values.pvc.name | default (include "cron.fullname" .) }}
+  labels:
+    {{- include "cron.labels" . | nindent 4 }}
+  {{- with .Values.pvc.annotations }}
+  annotations:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
+spec:
+  accessModes:
+    {{- if .Values.pvc.accessModes }}
+    {{- toYaml .Values.pvc.accessModes | nindent 4 }}
+    {{- else }}
+    - ReadWriteOnce
+    {{- end }}
+  {{- with .Values.pvc.storageClassName }}
+  storageClassName: {{ . }}
+  {{- end }}
+  {{- with .Values.pvc.volumeMode }}
+  volumeMode: {{ . }}
+  {{- end }}
+  resources:
+    requests:
+      storage: {{ .Values.pvc.size | default "10Gi" }}
+  {{- with .Values.pvc.selector }}
+  selector:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
+{{- end }}

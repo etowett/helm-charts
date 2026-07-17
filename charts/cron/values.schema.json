@@ -1,0 +1,243 @@
+{
+  "$schema": "https://json-schema.org/draft-07/schema#",
+  "title": "Cron Helm Chart Values",
+  "description": "Schema for the cron chart values.yaml. Validates default values and example overrides.",
+  "type": "object",
+  "additionalProperties": false,
+  "definitions": {
+    "image": {
+      "type": "object",
+      "description": "Container image configuration.",
+      "additionalProperties": true,
+      "properties": {
+        "repository": { "type": "string", "description": "Container image repository." },
+        "pullPolicy": {
+          "type": "string",
+          "description": "Image pull policy.",
+          "enum": ["Always", "IfNotPresent", "Never"]
+        },
+        "tag": { "type": "string", "description": "Image tag. Overrides the chart appVersion." }
+      }
+    },
+    "nullableInteger": {
+      "oneOf": [{ "type": "integer", "minimum": 0 }, { "type": "null" }]
+    },
+    "job": {
+      "type": "object",
+      "description": "Job-level (jobTemplate.spec) configuration.",
+      "additionalProperties": true,
+      "properties": {
+        "restartPolicy": {
+          "type": "string",
+          "description": "Pod restart policy for the job.",
+          "enum": ["OnFailure", "Never"]
+        },
+        "backoffLimit": { "$ref": "#/definitions/nullableInteger" },
+        "ttlSecondsAfterFinished": { "$ref": "#/definitions/nullableInteger" },
+        "activeDeadlineSeconds": { "$ref": "#/definitions/nullableInteger" },
+        "parallelism": { "$ref": "#/definitions/nullableInteger" },
+        "completions": { "$ref": "#/definitions/nullableInteger" },
+        "completionMode": {
+          "type": "string",
+          "description": "Job completion mode.",
+          "enum": ["NonIndexed", "Indexed"]
+        },
+        "backoffLimitPerIndex": { "$ref": "#/definitions/nullableInteger" },
+        "maxFailedIndexes": { "$ref": "#/definitions/nullableInteger" },
+        "podReplacementPolicy": {
+          "oneOf": [
+            { "type": "string", "enum": ["Failed", "TerminatingOrFailed"] },
+            { "type": "null" }
+          ]
+        },
+        "podFailurePolicy": { "type": "object", "description": "Pod failure policy rules." }
+      }
+    }
+  },
+  "properties": {
+    "image": { "$ref": "#/definitions/image" },
+    "imagePullSecrets": {
+      "type": "array",
+      "description": "Secrets for pulling images from a private registry.",
+      "items": { "type": "object" }
+    },
+    "nameOverride": { "type": "string", "description": "Override the chart name." },
+    "fullnameOverride": { "type": "string", "description": "Override the fully qualified name." },
+    "serviceAccount": {
+      "type": "object",
+      "description": "ServiceAccount configuration.",
+      "additionalProperties": true,
+      "properties": {
+        "create": { "type": "boolean" },
+        "automount": { "type": "boolean" },
+        "annotations": { "type": "object" },
+        "name": { "type": "string" }
+      }
+    },
+    "serviceAccountName": {
+      "type": "string",
+      "description": "Use a specific ServiceAccount name without creating one."
+    },
+    "annotations": { "type": "object", "description": "Annotations applied to every CronJob." },
+    "podAnnotations": { "type": "object", "description": "Annotations added to job pods." },
+    "podLabels": { "type": "object", "description": "Labels added to job pods." },
+    "podSecurityContext": { "type": "object", "description": "Pod-level security context." },
+    "securityContext": { "type": "object", "description": "Container-level security context." },
+    "commands": {
+      "type": "array",
+      "description": "Override the container entrypoint (command).",
+      "items": { "type": "string" }
+    },
+    "args": {
+      "type": "array",
+      "description": "Override the container args.",
+      "items": { "type": "string" }
+    },
+    "workingDir": { "type": "string", "description": "Working directory for the main container." },
+    "resources": { "type": "object", "description": "Resource limits and requests." },
+    "lifecycle": { "type": "object", "description": "Lifecycle hooks for the main container." },
+    "env": { "type": "object", "description": "Environment variables as key-value pairs." },
+    "secretEnv": {
+      "type": "object",
+      "description": "Environment variables sourced from existing secrets."
+    },
+    "envFrom": {
+      "type": "array",
+      "description": "Mount entire ConfigMaps or Secrets as environment variables.",
+      "items": { "type": "object" }
+    },
+    "volumes": {
+      "type": "array",
+      "description": "Additional volumes.",
+      "items": { "type": "object" }
+    },
+    "volumeMounts": {
+      "type": "array",
+      "description": "Additional volume mounts for the main container.",
+      "items": { "type": "object" }
+    },
+    "nodeSelector": { "type": "object", "description": "Node selector for pod scheduling." },
+    "tolerations": {
+      "type": "array",
+      "description": "Tolerations for pod scheduling.",
+      "items": { "type": "object" }
+    },
+    "affinity": { "type": "object", "description": "Affinity rules for pod scheduling." },
+    "topologySpreadConstraints": {
+      "type": "array",
+      "description": "Topology spread constraints.",
+      "items": { "type": "object" }
+    },
+    "priorityClassName": { "type": "string", "description": "Pod priority class name." },
+    "runtimeClassName": { "type": "string", "description": "Runtime class (gVisor, Kata, etc.)." },
+    "terminationGracePeriodSeconds": {
+      "type": "integer",
+      "minimum": 0,
+      "description": "Termination grace period in seconds."
+    },
+    "initContainer": {
+      "type": "object",
+      "description": "One-shot init container configuration.",
+      "additionalProperties": true,
+      "properties": {
+        "enabled": { "type": "boolean" },
+        "name": { "type": "string" },
+        "commands": { "type": "array", "items": { "type": "string" } },
+        "args": { "type": "array", "items": { "type": "string" } },
+        "resources": { "type": "object" },
+        "volumeMounts": { "type": "array", "items": { "type": "object" } }
+      }
+    },
+    "sidecars": {
+      "type": "array",
+      "description": "Native sidecar containers (init containers with restartPolicy: Always).",
+      "items": { "type": "object" }
+    },
+    "schedule": {
+      "type": "string",
+      "description": "Default cron schedule used when a cronjob omits its own."
+    },
+    "timeZone": { "type": "string", "description": "IANA time zone for the schedule (1.27+)." },
+    "concurrencyPolicy": {
+      "type": "string",
+      "description": "How to treat concurrent runs.",
+      "enum": ["Allow", "Forbid", "Replace"]
+    },
+    "suspend": { "type": "boolean", "description": "Suspend the schedule." },
+    "startingDeadlineSeconds": { "$ref": "#/definitions/nullableInteger" },
+    "successfulJobsHistoryLimit": {
+      "type": "integer",
+      "minimum": 0,
+      "description": "Completed jobs to retain."
+    },
+    "failedJobsHistoryLimit": {
+      "type": "integer",
+      "minimum": 0,
+      "description": "Failed jobs to retain."
+    },
+    "job": { "$ref": "#/definitions/job" },
+    "cronjobs": {
+      "type": "object",
+      "description": "Map of cronjob name to its overrides. Each entry must resolve to a schedule.",
+      "additionalProperties": {
+        "type": "object",
+        "description": "Per-cronjob overrides; may set any shared key plus its own schedule."
+      }
+    },
+    "configMaps": {
+      "type": "array",
+      "description": "ConfigMaps to create.",
+      "items": { "type": "object" }
+    },
+    "externalSecrets": {
+      "type": "array",
+      "description": "External Secrets configuration.",
+      "items": { "type": "object" }
+    },
+    "pvc": {
+      "type": "object",
+      "description": "Persistent Volume Claim configuration.",
+      "additionalProperties": true,
+      "properties": {
+        "enabled": { "type": "boolean" },
+        "name": { "type": "string" },
+        "annotations": { "type": "object" },
+        "accessModes": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "enum": ["ReadWriteOnce", "ReadOnlyMany", "ReadWriteMany", "ReadWriteOncePod"]
+          }
+        },
+        "size": {
+          "type": "string",
+          "description": "Storage size as a Kubernetes quantity.",
+          "pattern": "^[0-9]+(\\.[0-9]+)?(Ei|Pi|Ti|Gi|Mi|Ki|E|P|T|G|M|K|m)?$"
+        },
+        "storageClassName": { "type": "string" },
+        "volumeMode": { "type": "string" },
+        "selector": { "type": "object" }
+      }
+    },
+    "networkPolicy": {
+      "type": "object",
+      "description": "Network Policy configuration.",
+      "additionalProperties": true,
+      "properties": {
+        "enabled": { "type": "boolean" },
+        "policyTypes": { "type": "array", "items": { "type": "string" } },
+        "ingress": { "type": "array", "items": { "type": "object" } },
+        "egress": { "type": "array", "items": { "type": "object" } }
+      }
+    },
+    "rbac": {
+      "type": "object",
+      "description": "RBAC Role + RoleBinding for the ServiceAccount.",
+      "additionalProperties": true,
+      "properties": {
+        "enabled": { "type": "boolean" },
+        "rules": { "type": "array", "items": { "type": "object" } }
+      }
+    }
+  }
+}

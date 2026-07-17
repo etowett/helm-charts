@@ -1,0 +1,81 @@
+{{- $root := . -}}
+{{- range $name, $job := .Values.cronjobs }}
+{{- $cfg := include "cron.merged" (dict "root" $root "job" $job) | fromYaml }}
+{{- $j := $cfg.job }}
+{{- $jobName := include "cron.jobName" $name }}
+---
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: {{ printf "%s-%s" (include "cron.fullname" $root) $jobName | trunc 52 | trimSuffix "-" }}
+  labels:
+    {{- include "cron.labels" $root | nindent 4 }}
+    app.kubernetes.io/component: {{ $jobName | quote }}
+  {{- with $cfg.annotations }}
+  annotations:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
+spec:
+  schedule: {{ required (printf "cronjobs.%s: schedule is required (set it on the job or as a shared default)" $name) $cfg.schedule | quote }}
+  {{- with $cfg.timeZone }}
+  timeZone: {{ . | quote }}
+  {{- end }}
+  concurrencyPolicy: {{ $cfg.concurrencyPolicy }}
+  suspend: {{ $cfg.suspend }}
+  {{- if not (kindIs "invalid" $cfg.startingDeadlineSeconds) }}
+  startingDeadlineSeconds: {{ $cfg.startingDeadlineSeconds | int64 }}
+  {{- end }}
+  successfulJobsHistoryLimit: {{ $cfg.successfulJobsHistoryLimit | int64 }}
+  failedJobsHistoryLimit: {{ $cfg.failedJobsHistoryLimit | int64 }}
+  jobTemplate:
+    metadata:
+      labels:
+        {{- include "cron.selectorLabels" $root | nindent 8 }}
+        app.kubernetes.io/component: {{ $jobName | quote }}
+    spec:
+      {{- if not (kindIs "invalid" $j.backoffLimit) }}
+      backoffLimit: {{ $j.backoffLimit | int64 }}
+      {{- end }}
+      {{- if not (kindIs "invalid" $j.ttlSecondsAfterFinished) }}
+      ttlSecondsAfterFinished: {{ $j.ttlSecondsAfterFinished | int64 }}
+      {{- end }}
+      {{- if not (kindIs "invalid" $j.activeDeadlineSeconds) }}
+      activeDeadlineSeconds: {{ $j.activeDeadlineSeconds | int64 }}
+      {{- end }}
+      {{- if not (kindIs "invalid" $j.parallelism) }}
+      parallelism: {{ $j.parallelism | int64 }}
+      {{- end }}
+      {{- if not (kindIs "invalid" $j.completions) }}
+      completions: {{ $j.completions | int64 }}
+      {{- end }}
+      {{- if and $j.completionMode (ne $j.completionMode "NonIndexed") }}
+      completionMode: {{ $j.completionMode }}
+      {{- end }}
+      {{- if not (kindIs "invalid" $j.backoffLimitPerIndex) }}
+      backoffLimitPerIndex: {{ $j.backoffLimitPerIndex | int64 }}
+      {{- end }}
+      {{- if not (kindIs "invalid" $j.maxFailedIndexes) }}
+      maxFailedIndexes: {{ $j.maxFailedIndexes | int64 }}
+      {{- end }}
+      {{- with $j.podReplacementPolicy }}
+      podReplacementPolicy: {{ . }}
+      {{- end }}
+      {{- with $j.podFailurePolicy }}
+      podFailurePolicy:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      template:
+        metadata:
+          {{- with $cfg.podAnnotations }}
+          annotations:
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
+          labels:
+            {{- include "cron.selectorLabels" $root | nindent 12 }}
+            app.kubernetes.io/component: {{ $jobName | quote }}
+            {{- with $cfg.podLabels }}
+            {{- toYaml . | nindent 12 }}
+            {{- end }}
+        spec:
+          {{- include "cron.podSpec" (dict "root" $root "cfg" $cfg "name" $jobName) | nindent 10 }}
+{{- end }}

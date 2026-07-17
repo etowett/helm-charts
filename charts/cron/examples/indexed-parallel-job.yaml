@@ -1,0 +1,45 @@
+# A parallel, Indexed CronJob: shard a batch across N workers. Each pod gets a unique
+# JOB_COMPLETION_INDEX (0..completions-1) and the job is complete when every index succeeds.
+# Includes a native sidecar (Cloud SQL proxy) that runs alongside each worker and is torn down
+# automatically so the job can complete.
+image:
+  repository: myrepo/batch-processor
+  tag: "v2.0.0"
+  pullPolicy: IfNotPresent
+
+env:
+  LOG_LEVEL: "info"
+
+cronjobs:
+  shard-processor:
+    schedule: "*/30 * * * *"
+    commands: ["/bin/sh"]
+    args: ["-c", "bin/process --shard=$JOB_COMPLETION_INDEX --of=4"]
+    job:
+      completionMode: Indexed
+      completions: 4
+      parallelism: 4
+      backoffLimitPerIndex: 2
+      maxFailedIndexes: 1
+      podReplacementPolicy: Failed
+    sidecars:
+      - name: cloud-sql-proxy
+        image:
+          repository: gcr.io/cloud-sql-connectors/cloud-sql-proxy
+          tag: "2.11.0"
+          pullPolicy: IfNotPresent
+        args: ["--port=5432", "my-project:us-central1:my-instance"]
+        securityContext:
+          runAsNonRoot: true
+        resources:
+          limits:
+            cpu: 200m
+            memory: 128Mi
+          requests:
+            cpu: 50m
+            memory: 64Mi
+        startupProbe:
+          tcpSocket:
+            port: 5432
+          periodSeconds: 5
+          failureThreshold: 12

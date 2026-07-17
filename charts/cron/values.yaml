@@ -1,0 +1,470 @@
+# Default values for cron.
+# This is a YAML-formatted file.
+# Declare variables to be passed into your templates.
+#
+# This chart deploys one or more Kubernetes CronJobs from a single release. Every top-level key
+# below is a SHARED DEFAULT that applies to every entry in `cronjobs`. Each entry under `cronjobs`
+# may override any of these keys for that one job. Overrides are deep-merged over the shared
+# defaults (per-job value wins; maps such as `env` are merged key-by-key, lists are replaced).
+#
+# Minimal usage:
+#   image:
+#     repository: myrepo/worker
+#     tag: v1.2.3
+#   cronjobs:
+#     nightly-cleanup:
+#       schedule: "0 2 * * *"
+#       commands: ["/bin/sh"]
+#       args: ["-c", "bin/cleanup"]
+
+## @section Image parameters
+##
+
+## Container image shared by every cronjob (override per-job under cronjobs.<name>.image)
+## More information: https://kubernetes.io/docs/concepts/containers/images/
+## @param image.repository Container image repository
+## @param image.pullPolicy Image pull policy (Always, IfNotPresent, Never)
+## @param image.tag Image tag (overrides the chart appVersion if set)
+##
+image:
+  repository: busybox
+  pullPolicy: IfNotPresent
+  # Overrides the image tag whose default is the chart appVersion.
+  # NOTE: Using "latest" is not recommended for production. Use specific version tags.
+  tag: "1.36"
+
+## @param imagePullSecrets Kubernetes secret names for pulling private images
+## https://kubernetes.io/docs/tasks/configure-pod-container/pull-image-private-registry/
+## Example:
+## imagePullSecrets:
+##   - name: myregistrykey
+##
+imagePullSecrets: []
+
+## @section Global parameters
+##
+
+## @param nameOverride Override the chart name
+##
+nameOverride: ""
+
+## @param fullnameOverride Override the full name of resources
+##
+fullnameOverride: ""
+
+## @section Service Account parameters
+##
+
+## ServiceAccount used by every cronjob pod (release-scoped — one ServiceAccount per release).
+## A pod can opt into a different one with cronjobs.<name>.serviceAccountName.
+## https://kubernetes.io/docs/concepts/security/service-accounts/
+## @param serviceAccount.create Specifies whether a service account should be created
+## @param serviceAccount.automount Automatically mount the ServiceAccount's API credentials
+## @param serviceAccount.annotations Annotations to add to the service account (e.g. IRSA / Workload Identity)
+## @param serviceAccount.name Name of the service account (generated from the fullname template if empty)
+##
+serviceAccount:
+  create: true
+  automount: true
+  annotations: {}
+  name: ""
+
+## @param serviceAccountName Use a specific ServiceAccount name for pods without creating one (overridable per-job)
+##
+serviceAccountName: ""
+
+## @section Pod metadata parameters
+##
+
+## @param annotations Annotations applied to every CronJob resource's metadata
+##
+annotations: {}
+
+## @param podAnnotations Annotations added to every job pod
+## https://kubernetes.io/docs/concepts/overview/working-with-objects/annotations/
+##
+podAnnotations: {}
+
+## @param podLabels Labels added to every job pod
+##
+podLabels: {}
+
+## @section Security parameters
+##
+
+## @param podSecurityContext Pod-level security context
+## https://kubernetes.io/docs/tasks/configure-pod-container/security-context/
+## Example:
+## podSecurityContext:
+##   runAsNonRoot: true
+##   runAsUser: 65534
+##   fsGroup: 65534
+##   seccompProfile:
+##     type: RuntimeDefault
+##
+podSecurityContext: {}
+
+## @param securityContext Container-level security context for the main job container
+## Example:
+## securityContext:
+##   allowPrivilegeEscalation: false
+##   readOnlyRootFilesystem: true
+##   runAsNonRoot: true
+##   runAsUser: 65534
+##   capabilities:
+##     drop:
+##       - ALL
+##
+securityContext: {}
+
+## @section Container parameters
+##
+
+## Override the container entrypoint (command) and its arguments. Most cronjobs set `args`
+## (and sometimes `commands`) per-job under cronjobs.<name>.
+## @param commands Override the container entrypoint
+## @param args Override the container arguments
+## Example:
+## commands: ["/bin/sh"]
+## args: ["-c", "echo hello"]
+##
+commands: []
+args: []
+
+## @param workingDir Working directory for the main container
+##
+workingDir: ""
+
+## @param resources Resource limits and requests for the main job container. Always set these in production
+## https://kubernetes.io/docs/concepts/configuration/manage-resources-containers/
+## Example:
+## resources:
+##   limits:
+##     cpu: 500m
+##     memory: 512Mi
+##   requests:
+##     cpu: 100m
+##     memory: 128Mi
+##
+resources: {}
+
+## @param lifecycle Lifecycle hooks for the main container
+## https://kubernetes.io/docs/concepts/containers/container-lifecycle-hooks/
+##
+lifecycle: {}
+
+## @param env Environment variables as key-value pairs
+## Example:
+## env:
+##   LOG_LEVEL: "info"
+##   BATCH_SIZE: "1000"
+##
+env: {}
+
+## @param secretEnv Environment variables sourced from existing secrets (created outside this chart)
+## Example:
+## secretEnv:
+##   DATABASE_PASSWORD:
+##     name: db-secret
+##     key: password
+##
+secretEnv: {}
+
+## @param envFrom Mount entire ConfigMaps or Secrets as environment variables
+## Example:
+## envFrom:
+##   - configMapRef:
+##       name: cron-config
+##   - secretRef:
+##       name: cron-secrets
+##
+envFrom: []
+
+## @section Storage parameters
+##
+
+## Additional volumes and mounts available to the main container, init container, and sidecars.
+## https://kubernetes.io/docs/concepts/storage/volumes/
+## @param volumes Additional volumes for the pod
+## @param volumeMounts Additional volume mounts for the main container
+## Example:
+## volumes:
+##   - name: tmp
+##     emptyDir: {}
+## volumeMounts:
+##   - name: tmp
+##     mountPath: /tmp
+##
+volumes: []
+volumeMounts: []
+
+## @section Scheduling parameters
+##
+
+## @param nodeSelector Node labels for pod assignment
+##
+nodeSelector: {}
+
+## @param tolerations Tolerations for pod assignment
+##
+tolerations: []
+
+## @param affinity Affinity rules for pod assignment
+##
+affinity: {}
+
+## @param topologySpreadConstraints Topology spread constraints for pod assignment
+## https://kubernetes.io/docs/concepts/scheduling-eviction/topology-spread-constraints/
+##
+topologySpreadConstraints: []
+
+## @param priorityClassName Pod priority class name
+## https://kubernetes.io/docs/concepts/scheduling-eviction/pod-priority-preemption/
+##
+priorityClassName: ""
+
+## @param runtimeClassName Runtime class name (gVisor, Kata, etc.)
+## https://kubernetes.io/docs/concepts/containers/runtime-class/
+##
+runtimeClassName: ""
+
+## @param terminationGracePeriodSeconds Grace period before a job pod is force-killed, in seconds
+##
+terminationGracePeriodSeconds: 30
+
+## @section Init container parameters
+##
+
+## One-shot init container that must complete before the main container starts (e.g. migrations).
+## It reuses the cronjob's image and the shared env/secretEnv.
+## https://kubernetes.io/docs/concepts/workloads/pods/init-containers/
+## @param initContainer.enabled Enable the one-shot init container
+## @param initContainer.name Init container name
+## @param initContainer.commands Override the init container entrypoint (the image is the cronjob's image)
+## @param initContainer.args Override the init container arguments
+## @param initContainer.resources Resource limits and requests for the init container
+## @param initContainer.volumeMounts Volume mounts for the init container
+##
+initContainer:
+  enabled: false
+  name: init
+  commands: []
+  args: []
+  resources: {}
+  volumeMounts: []
+
+## @section Sidecar parameters
+##
+
+## @param sidecars Sidecar containers, rendered as NATIVE sidecars (init containers with restartPolicy: Always)
+## Native sidecars are the correct pattern for Jobs: they keep running while the main container
+## works, then are terminated automatically so the Job can complete (a plain sidecar would keep
+## the Job running forever). Requires Kubernetes 1.29+.
+## https://kubernetes.io/docs/concepts/workloads/pods/sidecar-containers/
+## Example:
+## sidecars:
+##   - name: cloud-sql-proxy
+##     image:
+##       # repository and tag are both REQUIRED for sidecars (no implicit default).
+##       repository: gcr.io/cloud-sql-connectors/cloud-sql-proxy
+##       tag: "2.11"
+##       pullPolicy: IfNotPresent
+##     # commands (preferred, matches the main container) or command both set the entrypoint.
+##     commands: []
+##     args: ["--port=5432", "my-project:us-central1:my-instance"]
+##     env: []
+##     secretEnv: []
+##     ports: []
+##     resources: {}
+##     securityContext: {}
+##     volumeMounts: []
+##     # Probes (httpGet | tcpSocket | exec | grpc) are supported for native sidecars.
+##     startupProbe: {}
+##     livenessProbe: {}
+##     readinessProbe: {}
+##
+sidecars: []
+
+## @section CronJob scheduling parameters
+##
+## Shared CronJob defaults. Every field below can be overridden per-job.
+## https://kubernetes.io/docs/concepts/workloads/controllers/cron-jobs/
+
+## @param schedule Default cron schedule used when a cronjob omits its own
+## Every cronjob must resolve to a non-empty schedule, either here or per-job.
+##
+schedule: ""
+
+## @param timeZone IANA time zone for the schedule, e.g. "America/New_York"
+##
+timeZone: ""
+
+## @param concurrencyPolicy How to treat concurrent runs (Allow, Forbid, Replace)
+##
+concurrencyPolicy: Forbid
+
+## @param suspend Suspend the schedule (no new jobs are created while true)
+##
+suspend: false
+
+## @param startingDeadlineSeconds Deadline for starting a job if it misses its scheduled time (null = no deadline)
+##
+startingDeadlineSeconds: null
+
+## @param successfulJobsHistoryLimit How many completed jobs to retain in history
+## @param failedJobsHistoryLimit How many failed jobs to retain in history
+##
+successfulJobsHistoryLimit: 3
+failedJobsHistoryLimit: 1
+
+## @section Job parameters
+##
+
+## Job-level defaults (jobTemplate.spec). Overridable per-job under cronjobs.<name>.job.
+## https://kubernetes.io/docs/concepts/workloads/controllers/job/
+## @param job.restartPolicy Restart policy for job pods (OnFailure or Never; Always is not valid for Jobs)
+## @param job.backoffLimit Number of retries before the job is marked failed
+## @param job.ttlSecondsAfterFinished Auto-clean finished jobs this many seconds after completion (null = keep)
+## @param job.activeDeadlineSeconds Hard wall-clock limit for a single job run, in seconds (null = none)
+## @param job.parallelism Number of pods running in parallel (null = default of 1)
+## @param job.completions Number of successful completions required (null = default of 1)
+## @param job.completionMode Job completion mode (NonIndexed or Indexed; Indexed gives each pod a JOB_COMPLETION_INDEX)
+## @param job.backoffLimitPerIndex Per-index retry limit for Indexed jobs (null = unset)
+## @param job.maxFailedIndexes Maximum failed indexes before an Indexed job fails (null = unset)
+## @param job.podReplacementPolicy When to create replacement pods (Failed or TerminatingOrFailed; null = unset)
+## @param job.podFailurePolicy Fine-grained handling of pod failures (empty = unset)
+## https://kubernetes.io/docs/concepts/workloads/controllers/job/#pod-failure-policy
+## Example:
+## job:
+##   podFailurePolicy:
+##     rules:
+##       - action: FailJob
+##         onExitCodes:
+##           operator: In
+##           values: [42]
+##
+job:
+  restartPolicy: OnFailure
+  backoffLimit: 6
+  ttlSecondsAfterFinished: 3600
+  activeDeadlineSeconds: null
+  parallelism: null
+  completions: null
+  completionMode: NonIndexed
+  backoffLimitPerIndex: null
+  maxFailedIndexes: null
+  podReplacementPolicy: null
+  podFailurePolicy: {}
+
+## @section CronJobs
+##
+
+## @param cronjobs Map of <name> -> per-cronjob overrides. Each name produces one CronJob named "<release-fullname>-<name>"
+## An entry need only set `schedule` plus whatever it overrides from the shared defaults above.
+## Example:
+## cronjobs:
+##   nightly-cleanup:
+##     schedule: "0 2 * * *"
+##     commands: ["/bin/sh"]
+##     args: ["-c", "bin/cleanup --older-than=30d"]
+##     # any shared key can be overridden here:
+##     resources:
+##       limits: { cpu: 500m, memory: 256Mi }
+##     env:
+##       BATCH_SIZE: "1000"
+##     job:
+##       backoffLimit: 3
+##   hourly-sync:
+##     schedule: "0 * * * *"
+##     concurrencyPolicy: Replace
+##     args: ["-c", "bin/sync"]
+##
+cronjobs: {}
+
+## @section Helper resources
+##
+## Release-scoped resources, created once per release rather than per cronjob.
+
+## @param configMaps ConfigMaps to create
+## https://kubernetes.io/docs/concepts/configuration/configmap/
+## Example:
+## configMaps:
+##   - name: cron-config
+##     annotations: {}
+##     data:
+##       config.yaml: |
+##         key: value
+##
+configMaps: []
+
+## @param externalSecrets External Secrets to create (requires the External Secrets Operator)
+## Example:
+## externalSecrets:
+##   - name: cron-secret
+##     refreshInterval: 1h
+##     secretStoreRefName: cluster-secret-store
+##     secretStoreRefKind: ClusterSecretStore
+##     targetName: cron-secret
+##     dataKey: path/to/secret
+##
+externalSecrets: []
+
+## Persistent Volume Claim shared by the cronjob pods (e.g. for a shared work directory).
+## https://kubernetes.io/docs/concepts/storage/persistent-volumes/
+## @param pvc.enabled Create a PersistentVolumeClaim
+## @param pvc.name PVC name (defaults to the fullname template)
+## @param pvc.annotations Annotations to add to the PVC
+## @param pvc.accessModes Access modes for the PVC
+## @param pvc.size Storage size to request
+## @param pvc.storageClassName Storage class (uses the cluster default if empty)
+## @param pvc.volumeMode Volume mode (Filesystem or Block)
+## @param pvc.selector Label selector to bind a specific volume
+##
+pvc:
+  enabled: false
+  name: ""
+  annotations: {}
+  accessModes:
+    - ReadWriteOnce
+  size: 10Gi
+  storageClassName: ""
+  volumeMode: Filesystem
+  selector: {}
+
+## Network Policy applied to the cronjob pods.
+## https://kubernetes.io/docs/concepts/services-networking/network-policies/
+## @param networkPolicy.enabled Create a NetworkPolicy for the cronjob pods
+## @param networkPolicy.policyTypes Policy types to enforce (Ingress, Egress)
+## @param networkPolicy.ingress Ingress rules
+## @param networkPolicy.egress Egress rules
+## Example:
+## networkPolicy:
+##   egress:
+##     - to:
+##         - namespaceSelector: {}
+##       ports:
+##         - protocol: TCP
+##           port: 443
+##
+networkPolicy:
+  enabled: false
+  policyTypes:
+    - Egress
+  ingress: []
+  egress: []
+
+## RBAC for the ServiceAccount. Crons often need namespaced API access (e.g. to trigger or read
+## other resources). Creates a Role + RoleBinding bound to the chart's ServiceAccount.
+## https://kubernetes.io/docs/reference/access-authn-authz/rbac/
+## @param rbac.enabled Create a Role and RoleBinding for the ServiceAccount
+## @param rbac.rules Role rules
+## Example:
+## rbac:
+##   rules:
+##     - apiGroups: ["batch"]
+##       resources: ["jobs"]
+##       verbs: ["create", "get", "list"]
+##
+rbac:
+  enabled: false
+  rules: []

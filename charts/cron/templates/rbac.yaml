@@ -1,0 +1,27 @@
+{{- if .Values.rbac.enabled -}}
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: {{ include "cron.fullname" . }}
+  labels:
+    {{- include "cron.labels" . | nindent 4 }}
+{{- with .Values.rbac.rules }}
+rules:
+  {{- toYaml . | nindent 2 }}
+{{- end }}
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: {{ include "cron.fullname" . }}
+  labels:
+    {{- include "cron.labels" . | nindent 4 }}
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: {{ include "cron.fullname" . }}
+subjects:
+  - kind: ServiceAccount
+    name: {{ include "cron.serviceAccountName" . }}
+    namespace: {{ .Release.Namespace }}
+{{- end }}

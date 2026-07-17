@@ -1,0 +1,29 @@
+# Use a podFailurePolicy to react to specific failure modes instead of blindly retrying:
+# fail the whole job immediately on a non-retriable application exit code, and ignore failures
+# caused by the node being drained (so they don't count against backoffLimit).
+image:
+  repository: myrepo/worker
+  tag: "v1.2.3"
+  pullPolicy: IfNotPresent
+
+cronjobs:
+  import:
+    schedule: "15 * * * *"
+    commands: ["/bin/sh"]
+    args: ["-c", "bin/import"]
+    job:
+      backoffLimit: 6
+      restartPolicy: Never
+      podFailurePolicy:
+        rules:
+          # Exit code 42 means "bad input" — don't retry, fail the job.
+          - action: FailJob
+            onExitCodes:
+              containerName: import
+              operator: In
+              values: [42]
+          # Pod evicted by node drain — don't count it against backoffLimit.
+          - action: Ignore
+            onPodConditions:
+              - type: DisruptionTarget
+                status: "True"

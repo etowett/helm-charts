@@ -1,0 +1,27 @@
+{{ include "cron.fullname" . }} installed.
+
+{{- if .Values.cronjobs }}
+
+CronJobs created in namespace {{ .Release.Namespace }}:
+{{- range $name, $job := .Values.cronjobs }}
+{{- $cfg := include "cron.merged" (dict "root" $ "job" $job) | fromYaml }}
+  - {{ printf "%s-%s" (include "cron.fullname" $) (include "cron.jobName" $name) | trunc 52 | trimSuffix "-" }}  (schedule: {{ $cfg.schedule | default "<unset>" }}{{ with $cfg.timeZone }}, tz: {{ . }}{{ end }})
+{{- end }}
+
+View them:
+  kubectl get cronjobs -n {{ .Release.Namespace }} -l app.kubernetes.io/instance={{ .Release.Name }}
+
+Inspect a schedule and recent runs:
+  kubectl describe cronjob -n {{ .Release.Namespace }} <name>
+  kubectl get jobs -n {{ .Release.Namespace }} -l app.kubernetes.io/instance={{ .Release.Name }}
+
+Trigger a run immediately (without waiting for the schedule):
+  kubectl create job -n {{ .Release.Namespace }} <name>-manual --from=cronjob/<name>
+
+Tail the logs of the most recent run:
+  kubectl logs -n {{ .Release.Namespace }} -l app.kubernetes.io/instance={{ .Release.Name }} --tail=100 -f
+{{- else }}
+
+WARNING: no cronjobs are defined. Set `cronjobs.<name>.schedule` (and a command/args) in your
+values to create a CronJob. See the chart README for examples.
+{{- end }}
