@@ -1,0 +1,72 @@
+# Several related cronjobs in one release, sharing a common image, env, security context, and
+# resources. Each entry overrides only what it needs. Demonstrates the shared-defaults pattern
+# and a per-job concurrencyPolicy / secretEnv override.
+image:
+  repository: myrepo/worker
+  tag: "v1.2.3"
+  pullPolicy: IfNotPresent
+
+# Shared across every cronjob below.
+env:
+  LOG_LEVEL: "info"
+  APP_ENV: "production"
+
+podSecurityContext:
+  runAsNonRoot: true
+  runAsUser: 65534
+  fsGroup: 65534
+  seccompProfile:
+    type: RuntimeDefault
+
+securityContext:
+  allowPrivilegeEscalation: false
+  readOnlyRootFilesystem: true
+  capabilities:
+    drop: ["ALL"]
+
+resources:
+  limits:
+    cpu: 500m
+    memory: 256Mi
+  requests:
+    cpu: 100m
+    memory: 128Mi
+
+# Shared Job defaults; individual jobs override pieces of this.
+job:
+  backoffLimit: 4
+  ttlSecondsAfterFinished: 3600
+
+cronjobs:
+  nightly-cleanup:
+    schedule: "0 2 * * *"
+    commands: ["/bin/sh"]
+    args: ["-c", "bin/cleanup"]
+
+  hourly-sync:
+    schedule: "0 * * * *"
+    concurrencyPolicy: Replace
+    commands: ["/bin/sh"]
+    args: ["-c", "bin/sync"]
+    # Merge an extra env var on top of the shared env map.
+    env:
+      BATCH_SIZE: "1000"
+    secretEnv:
+      DATABASE_PASSWORD:
+        name: db-secret
+        key: password
+    job:
+      backoffLimit: 2
+
+  weekly-report:
+    schedule: "0 6 * * 1"
+    timeZone: "America/New_York"
+    commands: ["/bin/sh"]
+    args: ["-c", "bin/report --weekly"]
+    resources:
+      limits:
+        cpu: "1"
+        memory: 512Mi
+      requests:
+        cpu: 250m
+        memory: 256Mi

@@ -9,14 +9,16 @@ Personal collection of Helm charts. Each chart lives under `charts/` and ships w
 | Chart | Description | Docs |
 |-------|-------------|------|
 | [`app`](charts/app) | Flexible application chart with optional Celery (worker/beat/flower), hooks, init containers, sidecars, HPA, PDB, and ingress | [README](charts/app/README.md) · [CHANGELOG](charts/app/CHANGELOG.md) · [Examples](charts/app/examples) |
+| [`cron`](charts/cron) | Scheduled jobs — many CronJobs per release sharing a common pod spec, with per-job overrides, native sidecars, and full Job control | [README](charts/cron/README.md) · [CHANGELOG](charts/cron/CHANGELOG.md) · [Examples](charts/cron/examples) |
 
 ## Quick start
 
 ```sh
 helm install my-app ./charts/app -f my-values.yaml
+helm install my-crons ./charts/cron -f my-cron-values.yaml
 ```
 
-See the chart's [README](charts/app/README.md) for parameters and the [`examples/`](charts/app/examples) directory for ready-to-use values files covering basic web apps, ingress + TLS, Celery, init containers, hooks, autoscaling, and sidecars.
+See each chart's README for parameters and its `examples/` directory for ready-to-use values files: [`app`](charts/app/README.md) covers basic web apps, ingress + TLS, Celery, init containers, hooks, autoscaling, and sidecars ([examples](charts/app/examples)); [`cron`](charts/cron/README.md) covers single and multi-cron releases, Indexed parallel jobs, pod failure policies, and security hardening ([examples](charts/cron/examples)).
 
 ## Repository layout
 
@@ -65,7 +67,7 @@ See [`AGENTS.md`](AGENTS.md) for the full conventions guide.
 
 ## Kubernetes compatibility
 
-The `app` chart currently targets Kubernetes 1.29 and newer. CI validates manifest rendering up to the latest stable Kubernetes release and installs on the most recent versions that `kind` ships node images for. Each chart's `CHANGELOG.md` records the supported floor per release.
+The `app` and `cron` charts currently target Kubernetes 1.29 and newer. CI validates manifest rendering up to the latest stable Kubernetes release and installs on the most recent versions that `kind` ships node images for. Each chart's `CHANGELOG.md` records the supported floor per release.
 
 ## License
 

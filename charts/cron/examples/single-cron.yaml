@@ -1,0 +1,27 @@
+# A single scheduled job — the simplest useful configuration.
+# One CronJob that runs a cleanup task every night at 02:00 in a fixed time zone.
+image:
+  repository: myrepo/worker
+  tag: "v1.2.3"
+  pullPolicy: IfNotPresent
+
+env:
+  LOG_LEVEL: "info"
+
+resources:
+  limits:
+    cpu: 500m
+    memory: 256Mi
+  requests:
+    cpu: 100m
+    memory: 128Mi
+
+cronjobs:
+  nightly-cleanup:
+    schedule: "0 2 * * *"
+    timeZone: "America/New_York"
+    commands: ["/bin/sh"]
+    args: ["-c", "bin/cleanup --older-than=30d"]
+    job:
+      backoffLimit: 3
+      activeDeadlineSeconds: 1800

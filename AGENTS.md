@@ -4,13 +4,17 @@ Operational guide for AI agents working in this repository. Conventions below ap
 
 ## What this repo is
 
-A small collection of personal Helm charts. Today the only chart is `charts/app` — a flexible application chart with optional Celery worker/beat/flower components, hooks, init containers, sidecars, HPA, PDB, and ingress.
+A small collection of personal Helm charts:
+
+- `charts/app` — a flexible application chart with optional Celery worker/beat/flower components, hooks, init containers, sidecars, HPA, PDB, and ingress.
+- `charts/cron` — scheduled jobs. One release defines many CronJobs from a `cronjobs` map: top-level keys are shared defaults, each entry deep-merges its own overrides on top. Sidecars render as native sidecars (init containers with `restartPolicy: Always`), the only pattern that lets a Job with a helper container complete.
 
 ## Layout
 
 ```
 charts/                          Helm charts (each is self-contained)
   app/
+  cron/
     Chart.yaml                   Version, kubeVersion, maintainers
     values.yaml                  Documented with @param doc comments
     values.schema.json           Must stay in sync with values.yaml
@@ -88,8 +92,9 @@ Tool versions are pinned both in `.github/workflows/ci.yaml` (env vars at the to
 
 ## Where to learn the domain
 
-- Chart-specific docs: [`charts/app/README.md`](charts/app/README.md)
-- Per-chart changelog: [`charts/app/CHANGELOG.md`](charts/app/CHANGELOG.md)
+- Chart-specific docs: [`charts/app/README.md`](charts/app/README.md), [`charts/cron/README.md`](charts/cron/README.md)
+- Per-chart changelog: [`charts/app/CHANGELOG.md`](charts/app/CHANGELOG.md), [`charts/cron/CHANGELOG.md`](charts/cron/CHANGELOG.md)
+- CronJob concepts: https://kubernetes.io/docs/concepts/workloads/controllers/cron-jobs/
 - Helm chart best practices: https://helm.sh/docs/chart_best_practices/
 - chart-testing: https://github.com/helm/chart-testing
 - kubeconform: https://github.com/yannh/kubeconform
