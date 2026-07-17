@@ -1,0 +1,10 @@
+# Local tooling and build artifacts. These are what `make clean` removes:
+# `make install-kubeconform` (pulled in by `make validate`) writes to /bin,
+# and `make package` writes to /dist. Paths are anchored to the repo root so
+# they never mask something inside charts/.
+/bin/
+/dist/
+*.tgz
+
+# Local agent configuration (per-machine, not shared).
+.claude/settings.local.json
