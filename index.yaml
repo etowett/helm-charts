@@ -269,4 +269,31 @@ entries:
     urls:
     - https://github.com/etowett/helm-charts/releases/download/app-0.1.0/app-0.1.0.tgz
     version: 0.1.0
-generated: "2026-06-26T10:36:52.938361505Z"
+  cron:
+  - apiVersion: v2
+    appVersion: 1.0.0
+    created: "2026-07-17T09:29:34.548029904Z"
+    description: A Helm chart for running scheduled jobs on Kubernetes. One release
+      defines many CronJobs that share a common pod spec, with per-job overrides.
+    digest: 8fdc71236e260ab443e2d665886f55185ca69bf7efc8fb715f2051791cd73161
+    home: https://github.com/etowett/helm-charts
+    keywords:
+    - kubernetes
+    - cron
+    - cronjob
+    - scheduled
+    - batch
+    - job
+    kubeVersion: '>=1.29.0-0'
+    maintainers:
+    - email: ektowett@gmail.com
+      name: etowett
+      url: https://github.com/etowett
+    name: cron
+    sources:
+    - https://github.com/etowett/helm-charts
+    type: application
+    urls:
+    - https://github.com/etowett/helm-charts/releases/download/cron-0.1.0/cron-0.1.0.tgz
+    version: 0.1.0
+generated: "2026-07-17T09:29:34.548083705Z"
