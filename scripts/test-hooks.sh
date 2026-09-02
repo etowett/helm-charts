@@ -23,11 +23,13 @@ setup_repo() {
   git -C "$dir" init -q -b main
   git -C "$dir" config user.email t@example.com
   git -C "$dir" config user.name test
-  mkdir -p "$dir/charts/app/templates" "$dir/charts/app/examples"
-  echo 'version: "1.0.0"' >"$dir/charts/app/Chart.yaml"
+  mkdir -p "$dir/charts/app/templates" "$dir/charts/app/examples" "$dir/charts/app/crds"
+  printf 'apiVersion: v2\nname: app\nversion: "1.0.0"\nannotations:\n  version: unrelated\n' \
+    >"$dir/charts/app/Chart.yaml"
   echo 'replicaCount: 1' >"$dir/charts/app/values.yaml"
   echo '{}' >"$dir/charts/app/values.schema.json"
-  echo '# Changelog' >"$dir/charts/app/CHANGELOG.md"
+  printf '# Changelog\n\n## 1.0.0\n' >"$dir/charts/app/CHANGELOG.md"
+  echo 'kind: CustomResourceDefinition' >"$dir/charts/app/crds/widget.yaml"
   echo 'kind: Deployment' >"$dir/charts/app/templates/deployment.yaml"
   echo '# readme' >"$dir/charts/app/README.md"
   echo 'a: 1' >"$dir/charts/app/examples/basic.yaml"
@@ -93,6 +95,37 @@ check "sees a commit inside a command substitution" 2 \
   "$(run_hook guard-main-branch.sh "$repo" 'echo $(git commit -m wip)')"
 check "sees a push inside a subshell" 2 \
   "$(run_hook guard-main-branch.sh "$repo" '(git push origin main)')"
+
+# Review findings: a parser that DROPS quoted spans disarms the guard, because
+# the refspec is the thing most likely to be quoted.
+check "blocks a quoted refspec: push origin \"HEAD:main\"" 2 \
+  "$(run_hook guard-main-branch.sh "$repo" 'git push origin "HEAD:main"')"
+check "blocks a quoted branch: push origin \"main\"" 2 \
+  "$(run_hook guard-main-branch.sh "$repo" 'git push origin "main"')"
+check "blocks a single-quoted refspec" 2 \
+  "$(run_hook guard-main-branch.sh "$repo" "git push origin 'HEAD:main'")"
+check "blocks a quoted git and subcommand" 2 \
+  "$(run_hook guard-main-branch.sh "$repo" '"git" "commit" -m wip')"
+check "blocks --branches, git's alias for --all" 2 \
+  "$(run_hook guard-main-branch.sh "$repo" 'git push --branches origin')"
+check "blocks a refspec hidden behind --repo" 2 \
+  "$(run_hook guard-main-branch.sh "$repo" 'git push --repo origin HEAD:main')"
+check "does not follow a cd that would fail" 2 \
+  "$(run_hook guard-main-branch.sh "$repo" 'cd /nonexistent-dir-xyz; git commit -m wip')"
+check "does not trust a -C target that does not exist" 2 \
+  "$(run_hook guard-main-branch.sh "$repo" 'git -C /nonexistent-dir-xyz commit -m wip')"
+check "still allows a quoted feature-branch refspec" 0 \
+  "$(run_hook guard-main-branch.sh "$repo" 'git push origin "feat/x"')"
+# A substitution inside DOUBLE quotes really executes; inside single quotes it
+# is literal text. The parser has to tell those apart.
+check "sees a substitution inside double quotes" 2 \
+  "$(run_hook guard-main-branch.sh "$repo" 'echo "$(git commit -m wip)"')"
+check "sees a backtick substitution inside double quotes" 2 \
+  "$(run_hook guard-main-branch.sh "$repo" 'echo "`git push origin main`"')"
+check "treats a substitution inside single quotes as literal" 0 \
+  "$(run_hook guard-main-branch.sh "$repo" "echo '\$(git commit -m wip)'")"
+check "treats a backslash-escaped substitution as literal" 0 \
+  "$(run_hook guard-main-branch.sh "$repo" 'echo "\$(git commit -m wip)"')"
 
 git -C "$repo" switch -qc feat/y
 check "allows commit on a feature branch" 0 \
@@ -161,6 +194,60 @@ check "sees -a hidden in a combined short flag (-va)" 2 \
   "$(run_hook guard-chart-contract.sh "$repo" 'git commit -va -m "bump replicas"')"
 check "does not read --amend as -a" 0 \
   "$(run_hook guard-chart-contract.sh "$repo" 'git commit --amend --no-edit')"
+
+# Review finding: an allowlist of known paths misses whatever a chart adds next.
+echo 'kind: CustomResourceDefinition # changed' >"$repo/charts/app/crds/widget.yaml"
+git -C "$repo" add charts/app/crds/widget.yaml
+check "blocks a packaged crds/ change with no bump" 2 \
+  "$(run_hook guard-chart-contract.sh "$repo" 'git commit -m crd')"
+git -C "$repo" reset -q --hard
+
+# Establish a deterministic base: the cases above release whatever version they
+# happen to release, and the next two assertions are about a specific one.
+printf 'apiVersion: v2\nname: app\nversion: "2.0.0"\nannotations:\n  version: unrelated\n' \
+  >"$repo/charts/app/Chart.yaml"
+printf '# Changelog\n\n## 2.0.0\nbase\n' >"$repo/charts/app/CHANGELOG.md"
+git -C "$repo" add -A
+git -C "$repo" commit -qm "release 2.0.0"
+
+# Review finding: `git diff | grep '+.*version:'` accepts a nested version key.
+echo 'kind: Deployment # changed' >"$repo/charts/app/templates/deployment.yaml"
+printf 'apiVersion: v2\nname: app\nversion: "2.0.0"\nannotations:\n  version: bumped-but-not-the-chart\n' \
+  >"$repo/charts/app/Chart.yaml"
+git -C "$repo" add -A
+check "does not accept a nested annotations version: as a bump" 2 \
+  "$(run_hook guard-chart-contract.sh "$repo" 'git commit -m sneaky')"
+git -C "$repo" reset -q --hard
+
+# A version that moves backwards is not a bump either — ct lint rejects it too.
+echo 'kind: Deployment # changed' >"$repo/charts/app/templates/deployment.yaml"
+printf 'apiVersion: v2\nname: app\nversion: "1.9.0"\n' >"$repo/charts/app/Chart.yaml"
+printf '# Changelog\n\n## 1.9.0\nwrong direction\n' >"$repo/charts/app/CHANGELOG.md"
+git -C "$repo" add -A
+check "blocks a version that goes backwards" 2 \
+  "$(run_hook guard-chart-contract.sh "$repo" 'git commit -m downgrade')"
+git -C "$repo" reset -q --hard
+
+# Review finding: touching the changelog is not the same as recording the release.
+echo 'kind: Deployment # changed' >"$repo/charts/app/templates/deployment.yaml"
+printf 'apiVersion: v2\nname: app\nversion: "2.1.0"\nannotations:\n  version: unrelated\n' \
+  >"$repo/charts/app/Chart.yaml"
+printf '# Changelog\n\n## 2.0.0\ntypo fix in an old entry\n' >"$repo/charts/app/CHANGELOG.md"
+git -C "$repo" add -A
+check "blocks when the changelog names an old version, not the new one" 2 \
+  "$(run_hook guard-chart-contract.sh "$repo" 'git commit -m half')"
+
+printf '# Changelog\n\n## 2.1.0\nthe real entry\n\n## 2.0.0\n' >"$repo/charts/app/CHANGELOG.md"
+git -C "$repo" add -A
+check "allows once the changelog names the new version" 0 \
+  "$(run_hook guard-chart-contract.sh "$repo" 'git commit -m complete')"
+git -C "$repo" reset -q --hard
+
+check "does not follow a cd that would fail" 2 \
+  "$(printf 'kind: x\n' >"$repo/charts/app/templates/deployment.yaml"
+     git -C "$repo" add -A
+     run_hook guard-chart-contract.sh "$repo" 'cd /nonexistent-dir-xyz; git commit -m wip')"
+git -C "$repo" reset -q --hard
 git -C "$repo" reset -q --hard
 rm -rf "$repo"
 

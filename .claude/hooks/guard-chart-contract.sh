@@ -70,7 +70,13 @@ while IFS= read -r seg; do
   [ $# -eq 0 ] && continue
 
   if [ "$1" = "cd" ]; then
-    [ -n "${2:-}" ] && [ "$2" != "-" ] && current_dir="$(resolve_dir "$2")"
+    # Only follow a `cd` that would succeed; otherwise the shell stays put and
+    # so must we. Believing an unusable directory makes every git read below
+    # fail, and the hook then exits 0 — failing open.
+    if [ -n "${2:-}" ] && [ "$2" != "-" ]; then
+      candidate="$(resolve_dir "$2")"
+      [ -d "$candidate" ] && current_dir="$candidate"
+    fi
     continue
   fi
 
@@ -83,7 +89,8 @@ while IFS= read -r seg; do
       -C)
         shift
         [ $# -gt 0 ] && {
-          target_dir="$(resolve_dir "$1")"
+          candidate="$(resolve_dir "$1")"
+          [ -d "$candidate" ] && target_dir="$candidate"
           shift
         }
         ;;
@@ -133,39 +140,81 @@ changed="$(
 )"
 [ -n "$changed" ] || exit 0
 
-# Charts whose PACKAGED content changed. README.md and examples/ are excluded on
-# purpose: they are validated by CI but do not ship, so a docs fix must not force
-# a version bump.
+# Charts whose PACKAGED content changed.
+#
+# An allowlist of known paths (templates/, values.yaml, …) misses whatever the
+# next chart adds — `crds/`, a vendored subchart under `charts/`, a `files/`
+# directory read by `.Files`. So this is an EXEMPTION list instead: everything
+# inside a chart ships unless it is named here.
+#
+#   README.md    documentation; not worth a release on its own
+#   CHANGELOG.md packaged, but requiring a bump for touching it is circular
+#   examples/    CI-validated, but excluded from the package by .helmignore
 packaging_changed="$(
   printf '%s\n' "$changed" |
-    grep -E '^charts/[^/]+/(templates/|Chart\.yaml$|values\.yaml$|values\.schema\.json$|\.helmignore$)' |
+    grep -E '^charts/[^/]+/' |
+    grep -vE '^charts/[^/]+/(README\.md|CHANGELOG\.md|examples/)' |
     sed -E 's#^charts/([^/]+)/.*#\1#' | sort -u
 )"
 [ -n "$packaging_changed" ] || exit 0
 
+# chart_version <ref-or-index> <chart> — the TOP-LEVEL `version:` from a
+# Chart.yaml, or nothing. Anchored to column 0 so a nested `version:` (under
+# `annotations:`, or inside a dependency entry) cannot masquerade as the chart
+# version, which a `git diff | grep '^+.*version:'` happily would.
+chart_version() {
+  local spec="$1" chart="$2"
+  if [ "$spec" = ":" ]; then
+    git -C "$commit_dir" show ":charts/$chart/Chart.yaml" 2>/dev/null
+  elif [ "$spec" = "worktree" ]; then
+    cat "$commit_dir/charts/$chart/Chart.yaml" 2>/dev/null
+  else
+    git -C "$commit_dir" show "$spec:charts/$chart/Chart.yaml" 2>/dev/null
+  fi | sed -nE 's/^version:[[:space:]]*"?([^"[:space:]]+)"?[[:space:]]*$/\1/p' | head -1
+}
+
+# The commit this one is measured against: its parent for an --amend, HEAD
+# otherwise. The new content is the index, or the worktree under `commit -a`.
+base_ref="HEAD"
+[ "$amend" -eq 1 ] && base_ref="HEAD~1"
+new_spec=":"
+[ "$stage_all" -eq 1 ] && new_spec="worktree"
+
 violations=()
 for chart in $packaging_changed; do
-  version_bumped=0
-  changelog_touched=0
-
-  # A Chart.yaml in the diff is not enough — the `version:` line itself must move.
-  # shellcheck disable=SC2086
-  if git -C "$commit_dir" diff $diff_base -- "charts/$chart/Chart.yaml" 2>/dev/null |
-    grep -Eq '^\+[[:space:]]*version:'; then
-    version_bumped=1
-  fi
-  if [ "$stage_all" -eq 1 ] && [ "$version_bumped" -eq 0 ] &&
-    git -C "$commit_dir" diff HEAD -- "charts/$chart/Chart.yaml" 2>/dev/null |
-    grep -Eq '^\+[[:space:]]*version:'; then
-    version_bumped=1
-  fi
-
-  printf '%s\n' "$changed" | grep -qx "charts/$chart/CHANGELOG.md" && changelog_touched=1
+  old_version="$(chart_version "$base_ref" "$chart")"
+  new_version="$(chart_version "$new_spec" "$chart")"
 
   missing=""
-  [ "$version_bumped" -eq 0 ] && missing="Chart.yaml version"
-  [ "$changelog_touched" -eq 0 ] && missing="${missing:+$missing and }CHANGELOG.md entry"
-  [ -n "$missing" ] && violations+=("$chart: missing $missing")
+  if [ -z "$new_version" ]; then
+    # Unreadable Chart.yaml — a brand-new chart, or a parse failure. Say so
+    # rather than passing silently.
+    missing="a readable top-level version: in Chart.yaml"
+  elif [ -n "$old_version" ] && [ "$old_version" = "$new_version" ]; then
+    missing="a Chart.yaml version bump (still $old_version)"
+  elif [ -n "$old_version" ] &&
+    [ "$(printf '%s\n%s\n' "$old_version" "$new_version" | sort -V | head -1)" != "$old_version" ]; then
+    # A version that moves DOWN is not a bump. `ct lint --check-version-increment`
+    # rejects it in CI; catching it here saves the round trip, and a decrement is
+    # almost always a bad merge resolution rather than an intent.
+    missing="an INCREASING Chart.yaml version ($old_version -> $new_version goes backwards)"
+  fi
+
+  # The changelog must mention the version actually being released — not merely
+  # have been touched, which any unrelated edit satisfies.
+  if [ -n "$new_version" ]; then
+    changelog="$(
+      if [ "$stage_all" -eq 1 ]; then
+        cat "$commit_dir/charts/$chart/CHANGELOG.md" 2>/dev/null
+      else
+        git -C "$commit_dir" show ":charts/$chart/CHANGELOG.md" 2>/dev/null
+      fi
+    )"
+    printf '%s' "$changelog" | grep -qF "$new_version" ||
+      missing="${missing:+$missing and }a CHANGELOG.md entry for $new_version"
+  fi
+
+  [ -n "$missing" ] && violations+=("$chart: needs $missing")
 done
 
 [ "${#violations[@]}" -eq 0 ] && exit 0
@@ -174,12 +223,13 @@ details=()
 for v in "${violations[@]}"; do details+=("• $v"); done
 details+=(
   ""
-  "The chart contract (AGENTS.md → Conventions): a change to templates/,"
-  "values.yaml, values.schema.json or Chart.yaml ships in the package, so it"
-  "needs a version bump and a changelog entry. CI enforces the version half"
-  "via 'ct lint --check-version-increment' — this catches both, now."
+  "The chart contract (AGENTS.md → The one rule): everything inside a chart"
+  "ships in the package, so a change to it needs a bumped top-level version in"
+  "Chart.yaml AND a CHANGELOG.md entry naming that exact version. CI enforces"
+  "the version half via 'ct lint --check-version-increment' — this catches"
+  "both, now, and reads the real version rather than any line saying 'version:'."
   ""
-  "README.md and examples/ edits alone are exempt and never reach this hook."
+  "Exempt, and never reaching this hook: README.md, CHANGELOG.md, examples/."
   "Override a genuine exception with HELM_CHARTS_SKIP_CONTRACT=1."
 )
 hook_deny "chart change without a version bump and changelog entry." "${details[@]}"

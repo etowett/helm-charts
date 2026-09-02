@@ -53,13 +53,30 @@ except Exception:
   fi
 }
 
-# hook_command_skeleton <command> — the command text with heredoc bodies and
-# quoted spans removed, so only tokens a shell would EXECUTE survive.
+# hook_command_skeleton <command> — the command text reduced to what a shell
+# would EXECUTE, with quoting resolved rather than discarded.
 #
-# This is the difference between script and data. Splitting a raw command string
-# on punctuation treats every quoted mention of `git commit` as a command, so a
-# PR body or an issue body that merely *documents* this workflow trips the
-# guard. Two portable awk passes: drop heredoc bodies, then drop quoted spans.
+# Two passes:
+#   1. Drop heredoc bodies entirely. `bash <<EOF … EOF` is opaque to us anyway,
+#      and a PR or issue body fed through one is pure data.
+#   2. Strip the quote characters but KEEP what they contained — with every
+#      shell metacharacter inside them replaced by a space.
+#
+# That second rule is the whole design, and getting it wrong breaks the guards
+# in one direction or the other:
+#
+#   * DROPPING quoted content (the obvious simplification) silently disarms
+#     them: `git push origin "HEAD:main"` loses its refspec and reads as a bare
+#     push, and `git push origin "main"` reads as a push with no ref at all.
+#     Both then sail past a guard that catches the unquoted spelling.
+#   * KEEPING quoted content verbatim makes them fire on prose: an issue body
+#     that says "never git commit on main" would split into a segment starting
+#     with `git`.
+#
+# Keeping the content but neutralising `; & | ( ) $ \` and newlines inside it
+# satisfies both. A quoted span can no longer *start* a segment — it stays part
+# of the word it sits in, so `--body "…git commit…"` remains an argument of the
+# `gh` command — while `"HEAD:main"` stays visible as the operand it is.
 hook_command_skeleton() {
   printf '%s' "$1" | awk '
     # Pass 1 (line-oriented): drop heredoc bodies.
@@ -86,15 +103,49 @@ hook_command_skeleton() {
       print line
     }
   ' | awk '
-    # Pass 2 (whole input): drop single- and double-quoted spans, multiline.
+    # Pass 2 (whole input): unquote, neutralising metacharacters inside quotes.
     BEGIN { sq = sprintf("%c", 39); dq = sprintf("%c", 34) }
+    # Inside quotes these are literal text to the shell, so they must not be
+    # able to start a segment here either. Two levels, because the shell has
+    # two: single quotes make EVERYTHING literal, double quotes still perform
+    # substitution.
+    function safe_sq(c) {
+      if (c == ";" || c == "&" || c == "|" || c == "(" || c == ")" ||
+          c == "$" || c == "`" || c == "\n") return " "
+      return c
+    }
+    function safe_dq(c) {
+      # `$` and a backtick survive: `echo "$(git commit)"` really does run git,
+      # so the segment splitter must still see the substitution. Everything else
+      # is literal inside double quotes, exactly as in single quotes.
+      if (c == ";" || c == "&" || c == "|" || c == "(" || c == ")" ||
+          c == "\n") return " "
+      return c
+    }
     { buf = buf $0 "\n" }
     END {
       n = length(buf); s = 0; d = 0; out = ""
       for (i = 1; i <= n; i++) {
         c = substr(buf, i, 1)
-        if (s) { if (c == sq) s = 0; continue }
-        if (d) { if (c == dq) d = 0; continue }
+        if (s) {                                   # single quotes: all literal
+          if (c == sq) { s = 0; continue }
+          out = out safe_sq(c); continue
+        }
+        if (d) {                                   # double quotes: \ escapes
+          if (c == "\\") {
+            e = substr(buf, i + 1, 1)
+            # A backslash-escaped $ or ` is literal even in double quotes.
+            if (e == "$" || e == "`") { i++; out = out " "; continue }
+            if (e == dq || e == "\\") { i++; out = out safe_dq(e); continue }
+            out = out c; continue
+          }
+          if (c == dq) { d = 0; continue }
+          # `$(` opens a real substitution even here. Emit the pair intact so
+          # the segment splitter can see it — safe_dq would otherwise blank the
+          # `(` and leave a lone `$`, which matches nothing.
+          if (c == "$" && substr(buf, i + 1, 1) == "(") { out = out "$("; i++; continue }
+          out = out safe_dq(c); continue
+        }
         if (c == sq) { s = 1; continue }
         if (c == dq) { d = 1; continue }
         if (c == "\\") { i++; out = out substr(buf, i, 1); continue }

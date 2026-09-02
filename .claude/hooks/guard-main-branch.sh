@@ -91,8 +91,17 @@ guard_push() {
       continue
     fi
     case "$tok" in
-      --all | --mirror) bulk=1 ;;
-      -o | --push-option | --repo | --receive-pack | --exec) want_value=1 ;;
+      # --branches is git's own alias for --all (git >= 2.45); both push every
+      # local branch, main included.
+      --all | --branches | --mirror) bulk=1 ;;
+      # --repo names the repository, so consume its value AND count it as the
+      # remote — otherwise the next bare word is mistaken for one and the real
+      # refspec is never examined.
+      --repo)
+        want_value=1
+        remote_seen=1
+        ;;
+      -o | --push-option | --receive-pack | --exec) want_value=1 ;;
       -* | "") ;;
       *)
         # first bare word is the remote, everything after it is a refspec
@@ -175,9 +184,15 @@ while IFS= read -r seg; do
   [ $# -eq 0 ] && continue
 
   if [ "$1" = "cd" ]; then
+    # Only follow a `cd` that would actually succeed. When it would not, the
+    # shell stays put and so must we — believing an unusable directory makes
+    # branch_at return nothing, which reads as "not protected" and fails open.
     if [ -n "${2:-}" ] && [ "$2" != "-" ]; then
-      current_dir="$(resolve_dir "$2")"
-      effective="$(branch_at "$current_dir")"
+      candidate="$(resolve_dir "$2")"
+      if [ -d "$candidate" ]; then
+        current_dir="$candidate"
+        effective="$(branch_at "$current_dir")"
+      fi
     fi
     continue
   fi
@@ -194,8 +209,13 @@ while IFS= read -r seg; do
       -C)
         shift
         [ $# -gt 0 ] && {
-          target_dir="$(resolve_dir "$1")"
-          own_tree=0
+          candidate="$(resolve_dir "$1")"
+          # An unusable -C target would make git itself fail; judging it as
+          # "no branch here" would fail open, so keep judging our own tree.
+          if [ -d "$candidate" ]; then
+            target_dir="$candidate"
+            own_tree=0
+          fi
           shift
         }
         ;;

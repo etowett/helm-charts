@@ -43,13 +43,31 @@ either client. Tested by `scripts/test-hooks.sh`, which CI runs.
 |---|---|---|
 | `session-start.sh` | SessionStart | branch, dirty count, missing tools, the gate, the chart contract |
 | `guard-main-branch.sh` | PreToolUse (Bash) | **blocks** `git commit` on `main` and any `git push` whose refspec targets it. Follows a leading `cd` and `git -C` so the branch is read from the tree the command actually runs in; judges a push by its refspec, so feature-branch and tag pushes go through from anywhere. Only text a shell would execute is walked — a PR body that discusses committing to main is data, not a violation. Escape hatch: `HELM_CHARTS_ALLOW_MAIN_COMMIT=1` |
-| `guard-chart-contract.sh` | PreToolUse (Bash) | **blocks** a commit that changes a chart's `templates/`, `values.yaml`, `values.schema.json` or `Chart.yaml` without both a version bump and a `CHANGELOG.md` entry. Reads what is actually staged, so `git commit -a` and `--amend` are seen correctly. README- and examples-only changes are exempt. Escape hatch: `HELM_CHARTS_SKIP_CONTRACT=1` |
+| `guard-chart-contract.sh` | PreToolUse (Bash) | **blocks** a commit that changes anything a chart *packages* without both an increasing top-level `Chart.yaml` version and a `CHANGELOG.md` entry naming that exact version. Works from an exemption list (`README.md`, `CHANGELOG.md`, `examples/`) rather than an allowlist, so whatever a chart adds next — `crds/`, a vendored subchart, a `files/` directory — is covered by construction. Parses the real version rather than grepping for a line saying `version:`, so a nested `annotations.version` is not a bump and neither is a version that moves backwards. Reads what is actually staged, so `git commit -a` (including `-va`, `-sam`) and `--amend` are seen correctly. Escape hatch: `HELM_CHARTS_SKIP_CONTRACT=1` |
 | `ensure-newline.sh` | PostToolUse (Edit/Write) | appends a missing trailing newline |
 | `lint-on-stop.sh` | Stop | advisory: names the gate for whatever changed this session |
-| `lib.sh` | — | shared payload parsing, root detection, and `hook_command_skeleton` (strips heredoc bodies and quoted spans so only executable text is judged) |
+| `lib.sh` | — | shared payload parsing, root detection, and the command parser both guards depend on |
 
 Only the two `guard-*` hooks can block. Everything else always exits 0, so a
 hook can never trap a session in a loop.
+
+> **The parser is the guards.** `hook_command_skeleton` in `lib.sh` reduces a
+> command to what a shell would *execute*: heredoc bodies are dropped, and
+> quote characters are stripped while **their contents are kept**, with shell
+> metacharacters inside them replaced by spaces. Both halves matter, and each
+> failure mode is a real one that was caught in review:
+>
+> - **Dropping quoted content** disarms the guards, because the operand most
+>   likely to be quoted is the dangerous one — `git push origin "HEAD:main"`
+>   loses its refspec and reads as a bare push.
+> - **Keeping it verbatim** makes them fire on prose — an issue body saying
+>   "never git commit on main" would start a segment with `git`.
+>
+> Neutralising metacharacters inside quotes gives both: a quoted span can no
+> longer *start* a segment, so it stays an argument of the command it belongs
+> to, while its text stays visible. Single and double quotes are handled
+> differently, because `"$(git commit)"` really runs git and `'$(git commit)'`
+> does not.
 
 > **Why `guard-chart-contract.sh` exists.** `ct lint --check-version-increment`
 > already enforces half of this rule — but in CI, minutes later, after the PR is

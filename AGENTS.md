@@ -22,11 +22,18 @@ Charts are the product. Everything else in the repo exists to keep them correct.
 ## The one rule
 
 **A change that ships inside the package needs a version bump and a changelog
-entry.** That means `templates/`, `values.yaml`, `values.schema.json`,
-`Chart.yaml`. Users install by version; a changed chart at an unchanged version
-is a lie about what they are getting.
+entry.** Users install by version; a changed chart at an unchanged version is a
+lie about what they are getting.
 
-`README.md` and `examples/` are exempt — CI validates them, but they do not ship.
+*Everything* inside `charts/<name>/` ships, with three exemptions:
+`README.md`, `CHANGELOG.md` (requiring a bump to touch it would be circular),
+and `examples/` (CI-validated, but excluded from the package by `.helmignore`).
+The rule is written as an exemption list on purpose, so whatever a chart adds
+next — `crds/`, a vendored subchart, a `files/` directory — is covered without
+anyone remembering to add it.
+
+The bump must **increase** the top-level `version:` in `Chart.yaml`, and the
+`CHANGELOG.md` entry must name that exact version.
 
 This is enforced three times over, deliberately, at increasing distance:
 `.claude/hooks/guard-chart-contract.sh` refuses the commit, the PR template asks

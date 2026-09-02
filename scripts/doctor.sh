@@ -75,39 +75,76 @@ else
 fi
 
 # ------------------------------------------------------------------- hooks ---
-# Every script in .claude/hooks (bar the sourced library) must be registered in
-# BOTH clients, and .codex must point at the shared script rather than copy it.
-hooks_ok=1
+# A name appearing SOMEWHERE in each config proves nothing: a guard moved from
+# PreToolUse to Stop, or left behind in a comment, would still read as
+# "registered" to a substring search while guarding nothing. Compare the two
+# configs structurally instead — every hook must be wired to the same EVENT in
+# both clients, and to the shared script rather than a copy.
+if hook_report="$(python3 - <<'PYEOF'
+import json, os, re, sys
+
+problems = []
+
+settings = json.load(open(".claude/settings.json"))
+claude = {}  # script name -> set of events
+for event, groups in settings.get("hooks", {}).items():
+    for group in groups:
+        for hook in group.get("hooks", []):
+            cmd = hook.get("command", "")
+            for name in re.findall(r"([A-Za-z0-9_-]+\.sh)", cmd):
+                claude.setdefault(name, set()).add(event)
+            if "$CLAUDE_PROJECT_DIR/.claude/hooks/" not in cmd:
+                problems.append(f"settings.json {event}: command is not a .claude/hooks script: {cmd}")
+
+# .codex/config.toml uses [[hooks.<Event>]] / [[hooks.<Event>.hooks]] tables.
+codex, event = {}, None
+for raw in open(".codex/config.toml"):
+    line = raw.strip()
+    m = re.match(r"^\[\[hooks\.([A-Za-z]+)(\.hooks)?\]\]$", line)
+    if m:
+        event = m.group(1)
+        continue
+    m = re.match(r"^command\s*=\s*(.+)$", line)
+    if m and event:
+        for name in re.findall(r"([A-Za-z0-9_-]+\.sh)", m.group(1)):
+            codex.setdefault(name, set()).add(event)
+        if "/.claude/hooks/" not in m.group(1):
+            problems.append(f"config.toml {event}: command does not point at .claude/hooks/: {line}")
+
+on_disk = {f for f in os.listdir(".claude/hooks") if f.endswith(".sh") and f != "lib.sh"}
+
+for name in sorted(on_disk):
+    if name not in claude:
+        problems.append(f"{name} exists but is registered in no Claude Code event")
+    if name not in codex:
+        problems.append(f"{name} exists but is registered in no Codex event")
+    if name in claude and name in codex and claude[name] != codex[name]:
+        problems.append(
+            f"{name} is wired to {sorted(claude[name])} in Claude Code but "
+            f"{sorted(codex[name])} in Codex — the guard is not the same in both"
+        )
+for name in sorted(set(claude) | set(codex)):
+    if name not in on_disk:
+        problems.append(f"{name} is registered but .claude/hooks/{name} does not exist")
+
+print("\n".join(problems))
+sys.exit(1 if problems else 0)
+PYEOF
+)"; then
+  ok "hooks wired to the same events in both clients, scripts shared not copied"
+else
+  bad "hook registration drift:"
+  printf '%s\n' "$hook_report" | sed 's/^/    /'
+fi
+
 for hook in .claude/hooks/*.sh; do
-  name="$(basename "$hook")"
-  [ "$name" = "lib.sh" ] && continue
-  [ -x "$hook" ] || {
-    bad "$hook is not executable"
-    hooks_ok=0
-  }
-  grep -q "$name" .claude/settings.json || {
-    bad "$name is not registered in .claude/settings.json"
-    hooks_ok=0
-  }
-  # Match only a `command = ...` line: .codex/config.toml is heavily commented,
-  # and a hook named in a comment is documented, not registered.
-  grep -E '^command[[:space:]]*=' .codex/config.toml | grep -q "$name" || {
-    bad "$name is not wired to a command in .codex/config.toml"
-    hooks_ok=0
-  }
+  [ "$(basename "$hook")" = "lib.sh" ] && continue
+  [ -x "$hook" ] || bad "$hook is not executable"
 done
-# ...and nothing may be registered that does not exist.
-for name in $(grep -oE '[a-z-]+\.sh' .claude/settings.json | sort -u); do
-  [ -f ".claude/hooks/$name" ] || {
-    bad ".claude/settings.json registers .claude/hooks/$name, which does not exist"
-    hooks_ok=0
-  }
-done
+
 if [ -d .codex/hooks ]; then
   bad ".codex/hooks/ exists — hook scripts must not be duplicated; .codex/config.toml points at .claude/hooks/"
-  hooks_ok=0
 fi
-[ "$hooks_ok" -eq 1 ] && ok "hooks registered for both clients, scripts shared not copied"
 
 # -------------------------------------------------------------- permissions ---
 # `.claude/settings.json` deliberately carries no `permissions.allow`: an entry
