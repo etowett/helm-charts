@@ -89,8 +89,10 @@ for hook in .claude/hooks/*.sh; do
     bad "$name is not registered in .claude/settings.json"
     hooks_ok=0
   }
-  grep -q "$name" .codex/config.toml || {
-    bad "$name is not registered in .codex/config.toml"
+  # Match only a `command = ...` line: .codex/config.toml is heavily commented,
+  # and a hook named in a comment is documented, not registered.
+  grep -E '^command[[:space:]]*=' .codex/config.toml | grep -q "$name" || {
+    bad "$name is not wired to a command in .codex/config.toml"
     hooks_ok=0
   }
 done
@@ -106,6 +108,34 @@ if [ -d .codex/hooks ]; then
   hooks_ok=0
 fi
 [ "$hooks_ok" -eq 1 ] && ok "hooks registered for both clients, scripts shared not copied"
+
+# -------------------------------------------------------------- permissions ---
+# `.claude/settings.json` deliberately carries no `permissions.allow`: an entry
+# there would auto-approve, for everyone, a command whose behaviour is defined
+# by files in the working tree. The allow-list belongs in the gitignored
+# settings.local.json. See .claude/README.md.
+if python3 -c '
+import json, sys
+allow = json.load(open(".claude/settings.json")).get("permissions", {}).get("allow")
+sys.exit(1 if allow else 0)
+' 2>/dev/null; then
+  ok ".claude/settings.json carries no committed allow-list"
+else
+  bad ".claude/settings.json has permissions.allow — that belongs in the gitignored settings.local.json"
+  note "A committed allow entry auto-approves working-tree-defined commands for every contributor."
+fi
+
+if [ -s .claude/settings.local.json.example ]; then
+  ok "settings.local.json.example present for maintainers to opt in"
+else
+  bad ".claude/settings.local.json.example is missing or empty — there is no way to opt in"
+fi
+
+if [ -s .codex/rules/allowlist.rules ]; then
+  ok ".codex/rules/allowlist.rules present"
+else
+  bad ".codex/rules/allowlist.rules is missing or empty — Codex would fall back to its defaults"
+fi
 
 # --------------------------------------------------------------- subagents ---
 agents_ok=1

@@ -105,6 +105,19 @@ hook_command_skeleton() {
   '
 }
 
+# hook_command_segments <command> — the commands a shell would run, one per
+# line, in order.
+#
+# Splits the skeleton on every sequencing operator AND on the punctuation that
+# opens a nested execution context — `$(`, backticks, `(`, `)`. Without that
+# last part `$(git commit -m x)` arrives as a single segment whose first token
+# is `$(git`, which matches nothing and slips through. Quoted spans are already
+# gone by this point, so a parenthesis that survives really is a subshell.
+hook_command_segments() {
+  hook_command_skeleton "$1" |
+    sed -E 's/&&/\n/g; s/\|\|/\n/g; s/;/\n/g; s/\|/\n/g; s/&/\n/g; s/\$\(/\n/g; s/[`()]/\n/g'
+}
+
 # hook_deny <headline> [detail...] — refuse the tool call and say why.
 # Exit status 2 is the "block with feedback" contract in both clients.
 hook_deny() {

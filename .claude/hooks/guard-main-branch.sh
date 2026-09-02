@@ -153,7 +153,7 @@ guard_checkout() {
 effective="$(branch_at "$current_dir")"
 
 # Split the skeleton into ordered segments on the shell sequencing operators.
-segments="$(hook_command_skeleton "$cmd" | sed -E 's/&&/\n/g; s/\|\|/\n/g; s/;/\n/g; s/\|/\n/g; s/&/\n/g')"
+segments="$(hook_command_segments "$cmd")"
 
 while IFS= read -r seg; do
   seg="${seg#"${seg%%[![:space:]]*}"}"

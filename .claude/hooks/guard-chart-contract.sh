@@ -50,7 +50,7 @@ resolve_dir() {
 commit_dir=""
 amend=0
 stage_all=0
-segments="$(hook_command_skeleton "$cmd" | sed -E 's/&&/\n/g; s/\|\|/\n/g; s/;/\n/g; s/\|/\n/g; s/&/\n/g')"
+segments="$(hook_command_segments "$cmd")"
 
 while IFS= read -r seg; do
   seg="${seg#"${seg%%[![:space:]]*}"}"
@@ -103,7 +103,12 @@ while IFS= read -r seg; do
   for tok in "$@"; do
     case "$tok" in
       --amend) amend=1 ;;
-      -a | --all | -am | -am*) stage_all=1 ;;
+      --all) stage_all=1 ;;
+      --) break ;;
+      --*) ;;
+      # -a hides inside combined short flags: -am, -va, -sam. Long options are
+      # excluded above so `--amend` is not read as one of them.
+      -*a*) stage_all=1 ;;
     esac
   done
 done <<EOF

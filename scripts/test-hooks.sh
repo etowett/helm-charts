@@ -89,6 +89,10 @@ check "honours the documented escape hatch as a prefix" 0 \
   "$(run_hook guard-main-branch.sh "$repo" 'HELM_CHARTS_ALLOW_MAIN_COMMIT=1 git commit -m "wip"')"
 check "ignores a non-git command" 0 \
   "$(run_hook guard-main-branch.sh "$repo" 'make check')"
+check "sees a commit inside a command substitution" 2 \
+  "$(run_hook guard-main-branch.sh "$repo" 'echo $(git commit -m wip)')"
+check "sees a push inside a subshell" 2 \
+  "$(run_hook guard-main-branch.sh "$repo" '(git push origin main)')"
 
 git -C "$repo" switch -qc feat/y
 check "allows commit on a feature branch" 0 \
@@ -153,6 +157,10 @@ check "sees an unstaged values.yaml change behind 'git commit -a'" 2 \
   "$(run_hook guard-chart-contract.sh "$repo" 'git commit -am "bump replicas"')"
 check "escape hatch overrides the contract" 0 \
   "$(run_hook guard-chart-contract.sh "$repo" 'HELM_CHARTS_SKIP_CONTRACT=1 git commit -am "bump replicas"')"
+check "sees -a hidden in a combined short flag (-va)" 2 \
+  "$(run_hook guard-chart-contract.sh "$repo" 'git commit -va -m "bump replicas"')"
+check "does not read --amend as -a" 0 \
+  "$(run_hook guard-chart-contract.sh "$repo" 'git commit --amend --no-edit')"
 git -C "$repo" reset -q --hard
 rm -rf "$repo"
 
