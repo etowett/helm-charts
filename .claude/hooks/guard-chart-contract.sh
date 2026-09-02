@@ -64,6 +64,15 @@ while IFS= read -r seg; do
       HELM_CHARTS_SKIP_CONTRACT=1) exit 0 ;;
       [A-Za-z_]*=*) shift ;;
       sudo | command | env | time | nohup) shift ;;
+      sh | bash | zsh | dash | ksh)
+        hook_unwrap_shell "$@"
+        # shellcheck disable=SC2154 # set by hook_unwrap_shell in lib.sh
+        set -- "${unwrapped[@]}"
+        [ $# -eq 0 ] && break
+        case "$1" in
+          sh | bash | zsh | dash | ksh) break ;;
+        esac
+        ;;
       *) break ;;
     esac
   done

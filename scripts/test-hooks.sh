@@ -127,6 +127,35 @@ check "treats a substitution inside single quotes as literal" 0 \
 check "treats a backslash-escaped substitution as literal" 0 \
   "$(run_hook guard-main-branch.sh "$repo" 'echo "\$(git commit -m wip)"')"
 
+# An UNQUOTED heredoc delimiter expands, so a substitution in the body runs.
+check "sees a substitution in an unquoted heredoc body" 2 \
+  "$(run_hook guard-main-branch.sh "$repo" 'cat <<EOF2
+$(git push origin main)
+EOF2')"
+check "leaves prose in an unquoted heredoc body alone" 0 \
+  "$(run_hook guard-main-branch.sh "$repo" 'cat <<EOF4
+never git push origin main
+EOF4')"
+quoted_heredoc="$(printf "cat <<'EOF3'\ngit push origin main\nEOF3")"
+check "leaves a quoted heredoc body entirely alone" 0 \
+  "$(run_hook guard-main-branch.sh "$repo" "$quoted_heredoc")"
+
+# A child shell runs its -c argument.
+check "sees a push run through bash -c" 2 \
+  "$(run_hook guard-main-branch.sh "$repo" 'bash -c "git push origin main"')"
+check "does not fire on a harmless bash -c" 0 \
+  "$(run_hook guard-main-branch.sh "$repo" 'bash -c "echo git push origin main"')"
+check "does not fire on bash running a script file" 0 \
+  "$(run_hook guard-main-branch.sh "$repo" 'bash scripts/deploy.sh')"
+
+# An inline alias hides the subcommand — refused in both directions.
+check "refuses an inline alias that hides a push" 2 \
+  "$(run_hook guard-main-branch.sh "$repo" 'git -c alias.pmain="push origin main" pmain')"
+check "refuses an inline alias even on a harmless subcommand" 2 \
+  "$(run_hook guard-main-branch.sh "$repo" 'git -c alias.x="!git push origin main" status')"
+check "still allows an ordinary -c config" 0 \
+  "$(run_hook guard-main-branch.sh "$repo" 'git -c user.name=x push origin feat/x')"
+
 git -C "$repo" switch -qc feat/y
 check "allows commit on a feature branch" 0 \
   "$(run_hook guard-main-branch.sh "$repo" 'git commit -m "wip"')"
@@ -192,6 +221,8 @@ check "escape hatch overrides the contract" 0 \
   "$(run_hook guard-chart-contract.sh "$repo" 'HELM_CHARTS_SKIP_CONTRACT=1 git commit -am "bump replicas"')"
 check "sees -a hidden in a combined short flag (-va)" 2 \
   "$(run_hook guard-chart-contract.sh "$repo" 'git commit -va -m "bump replicas"')"
+check "sees a commit run through bash -c" 2 \
+  "$(run_hook guard-chart-contract.sh "$repo" 'bash -c "git commit -a -m wip"')"
 check "does not read --amend as -a" 0 \
   "$(run_hook guard-chart-contract.sh "$repo" 'git commit --amend --no-edit')"
 

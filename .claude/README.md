@@ -67,7 +67,16 @@ hook can never trap a session in a loop.
 > longer *start* a segment, so it stays an argument of the command it belongs
 > to, while its text stays visible. Single and double quotes are handled
 > differently, because `"$(git commit)"` really runs git and `'$(git commit)'`
-> does not.
+> does not — and so are heredocs, because `<<EOF` expands its body and
+> `<<'EOF'` does not.
+>
+> **The one bypass left, and why it stays.** A *computed* operand is invisible:
+> `git push origin "$(printf main)"` and `git push origin "$BRANCH"` are
+> allowed, because resolving either means executing it, which is precisely what
+> a pre-tool guard must not do. Every literal spelling is caught, and a
+> command built that way is not something an agent reaches for by accident.
+> The same applies to `bash script.sh` and `eval` — though `bash -c "…"` *is*
+> followed. `scripts/test-hooks.sh` pins all of it, in both directions.
 
 > **Why `guard-chart-contract.sh` exists.** `ct lint --check-version-increment`
 > already enforces half of this rule — but in CI, minutes later, after the PR is

@@ -79,14 +79,47 @@ except Exception:
 # `gh` command — while `"HEAD:main"` stays visible as the operand it is.
 hook_command_skeleton() {
   printf '%s' "$1" | awk '
-    # Pass 1 (line-oriented): drop heredoc bodies.
-    BEGIN { sq = sprintf("%c", 39); dq = sprintf("%c", 34); delim = ""; strip = 0 }
+    # Pass 1 (line-oriented): drop heredoc bodies — but not the substitutions
+    # inside an unquoted one, which the shell really does execute.
+    BEGIN { sq = sprintf("%c", 39); dq = sprintf("%c", 34); delim = ""; strip = 0; quoted = 1 }
+
+    # subs(line) — only the text inside $(…) and `…` spans, joined by `;` so the
+    # segment splitter sees each as its own command. Everything else in the line
+    # is data: a PR body written through a heredoc must stay invisible.
+    function subs(line,   out, i, n, c, depth, buf) {
+      out = ""; n = length(line); i = 1
+      while (i <= n) {
+        c = substr(line, i, 1)
+        if (c == "$" && substr(line, i + 1, 1) == "(") {
+          depth = 1; i += 2; buf = ""
+          while (i <= n && depth > 0) {
+            c = substr(line, i, 1)
+            if (c == "(") depth++
+            else if (c == ")") { depth--; if (depth == 0) { i++; break } }
+            buf = buf c; i++
+          }
+          out = out "; " buf
+          continue
+        }
+        if (c == "`") {
+          i++; buf = ""
+          while (i <= n && substr(line, i, 1) != "`") { buf = buf substr(line, i, 1); i++ }
+          i++
+          out = out "; " buf
+          continue
+        }
+        i++
+      }
+      return out
+    }
     {
       if (delim != "") {
         t = $0
         if (strip) sub(/^\t+/, "", t)        # `<<-` strips leading tabs
         if (t == delim) { delim = ""; next } # closing delimiter — drop it
-        next                                 # body line — drop it
+        # <<"EOF" / <<'"'"'EOF'"'"' is fully literal; bare <<EOF expands.
+        if (!quoted) { e = subs(t); if (e != "") print e }
+        next
       }
       line = $0
       if (match(line, /<<-?[ \t]*/)) {
@@ -94,7 +127,8 @@ hook_command_skeleton() {
         rest = substr(line, RSTART + RLENGTH)
         strip = (op ~ /-/) ? 1 : 0
         first = substr(rest, 1, 1)
-        if (first == sq || first == dq) rest = substr(rest, 2)
+        quoted = (first == sq || first == dq) ? 1 : 0
+        if (quoted) rest = substr(rest, 2)
         if (match(rest, /^[A-Za-z_][A-Za-z0-9_]*/))
           delim = substr(rest, RSTART, RLENGTH)
         else
@@ -167,6 +201,37 @@ hook_command_skeleton() {
 hook_command_segments() {
   hook_command_skeleton "$1" |
     sed -E 's/&&/\n/g; s/\|\|/\n/g; s/;/\n/g; s/\|/\n/g; s/&/\n/g; s/\$\(/\n/g; s/[`()]/\n/g'
+}
+
+# hook_unwrap_shell — consume a leading `sh|bash|zsh -c` so the command it is
+# handed is judged on its own terms. Sets the positional parameters of the
+# CALLER via the `unwrapped` array.
+#
+# `bash -c "git push origin main"` otherwise reads as a `bash` command and is
+# waved through. This only follows what is spelled out: a script file, `eval`,
+# or a command built from a variable stays invisible, which is the same
+# documented blind spot as a computed refspec.
+hook_unwrap_shell() {
+  # shellcheck disable=SC2034 # read by the caller, which sources this file
+  unwrapped=("$@")
+  case "${1:-}" in
+    sh | bash | zsh | dash | ksh) ;;
+    *) return 0 ;;
+  esac
+  shift
+  while [ "$#" -gt 0 ]; do
+    case "$1" in
+      -c)
+        shift
+        # shellcheck disable=SC2034 # read by the caller
+        unwrapped=("$@")
+        return 0
+        ;;
+      -*) shift ;;
+      *) return 0 ;; # `bash script.sh` — the file's contents are not visible
+    esac
+  done
+  return 0
 }
 
 # hook_deny <headline> [detail...] — refuse the tool call and say why.

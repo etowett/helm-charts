@@ -21,8 +21,22 @@
 #     committing to main is data, not a violation.
 #
 # Limitations, all the same shape: only what is spelled out in the command text
-# is seen. A branch or directory change made inside a script, through `eval`, or
-# through a variable is invisible.
+# is seen, because the alternative is executing it to find out.
+#
+#   * A COMPUTED value is invisible. `git push origin "$(printf main)"` and
+#     `git push origin "$BRANCH"` are allowed: resolving either means running
+#     the substitution, which is exactly what a guard must not do. The literal
+#     spellings are all caught, and this is not a shape an agent reaches for by
+#     accident.
+#   * A branch or directory change made inside a script file, through `eval`,
+#     or through a variable is likewise invisible, and what follows is judged
+#     against the branch believed at that point. `bash -c "…"` IS followed;
+#     `bash script.sh` is not.
+#
+# What is deliberately NOT a limitation, because each was a real bypass:
+# quoted operands, `$(…)` and backticks (including inside double quotes and
+# inside an unquoted heredoc body), subshells, `--branches`, a refspec behind
+# `--repo`, a `cd` that would fail, and an inline `-c alias.…`.
 #
 # Escape hatch for the rare legitimate case: HELM_CHARTS_ALLOW_MAIN_COMMIT=1,
 # exported into the session or written as a prefix on the command itself — a
@@ -178,6 +192,18 @@ while IFS= read -r seg; do
       HELM_CHARTS_ALLOW_MAIN_COMMIT=1) exit 0 ;;
       [A-Za-z_]*=*) shift ;;
       sudo | command | env | time | nohup) shift ;;
+      sh | bash | zsh | dash | ksh)
+        # `bash -c "git push origin main"` runs the push; judge what it runs.
+        hook_unwrap_shell "$@"
+        # shellcheck disable=SC2154 # set by hook_unwrap_shell in lib.sh
+        set -- "${unwrapped[@]}"
+        [ $# -eq 0 ] && break
+        # A shell that is not `-c` (a script file) leaves $1 unchanged; stop
+        # rather than looping on it forever.
+        case "$1" in
+          sh | bash | zsh | dash | ksh) break ;;
+        esac
+        ;;
       *) break ;;
     esac
   done
@@ -203,6 +229,7 @@ while IFS= read -r seg; do
   # git's own options sit before the subcommand. -C is the only one that says
   # which tree the command operates on.
   own_tree=1
+  alias_seen=0
   target_dir="$current_dir"
   while [ $# -gt 0 ]; do
     case "$1" in
@@ -219,7 +246,18 @@ while IFS= read -r seg; do
           shift
         }
         ;;
-      -c | --git-dir | --work-tree | --namespace | --exec-path)
+      -c)
+        shift
+        # `git -c alias.p="push origin main" p` hides the subcommand behind a
+        # name this parser cannot resolve — and the alias body simultaneously
+        # reads as a real push, so the same command both bypasses the guard and
+        # trips it. Refuse the whole shape instead of guessing either way.
+        case "${1:-}" in
+          alias.*) alias_seen=1 ;;
+        esac
+        [ $# -gt 0 ] && shift
+        ;;
+      --git-dir | --work-tree | --namespace | --exec-path)
         shift
         [ $# -gt 0 ] && shift
         ;;
@@ -227,6 +265,14 @@ while IFS= read -r seg; do
       *) break ;;
     esac
   done
+  if [ "$alias_seen" -eq 1 ]; then
+    hook_deny "refusing a git command that defines an alias inline." \
+      "'git -c alias.x=...' hides the real subcommand behind a name this guard" \
+      "cannot resolve, so it can neither allow nor deny it honestly." \
+      "Run the underlying git command directly, or configure the alias in a" \
+      "separate step and invoke it as its own command." \
+      "Override a genuine exception with HELM_CHARTS_ALLOW_MAIN_COMMIT=1."
+  fi
   [ $# -gt 0 ] || continue
 
   if [ "$own_tree" -eq 1 ]; then judged="$effective"; else judged="$(branch_at "$target_dir")"; fi
