@@ -1,0 +1,20 @@
+# Owners are requested for review automatically when a PR touches their paths.
+# Later, more specific rules win over earlier ones.
+#
+# One maintainer today, so the catch-all covers everything. The explicit entries
+# exist to make the sensitive areas visible rather than to route work elsewhere.
+
+# Default owner for everything.
+*                       @etowett
+
+# The published surface: a change here reaches every user of a chart.
+/charts/                @etowett
+
+# Supply chain and release: CI, the release pipeline, and the agent config that
+# runs with the maintainer's own permissions.
+/.github/               @etowett
+/.claude/               @etowett
+/.codex/                @etowett
+/.agents/               @etowett
+/scripts/               @etowett
+/Makefile               @etowett

@@ -1,0 +1,68 @@
+---
+name: Chart bug
+description: A chart renders the wrong manifest, fails to install, or behaves differently from its README
+title: "[<chart>]: "
+labels:
+  - bug
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Please include the **values you passed** and the **rendered output** —
+        `helm template` reproduces almost every chart bug without a cluster.
+
+  - type: dropdown
+    id: chart
+    attributes:
+      label: Chart
+      options:
+        - app
+        - cron
+        - more than one
+    validations:
+      required: true
+
+  - type: input
+    id: chart-version
+    attributes:
+      label: Chart version
+      description: From `Chart.yaml`, or `helm list`.
+      placeholder: "app-1.5.1"
+    validations:
+      required: true
+
+  - type: input
+    id: versions
+    attributes:
+      label: Helm and Kubernetes versions
+      placeholder: "helm v4.2.4, k8s v1.37.0 (kind)"
+    validations:
+      required: true
+
+  - type: textarea
+    id: expected
+    attributes:
+      label: What did you expect, and what happened instead?
+      placeholder: |
+        Expected: sidecars render as init containers with restartPolicy: Always.
+        Actual: they render under spec.containers, so the Job never completes.
+    validations:
+      required: true
+
+  - type: textarea
+    id: values
+    attributes:
+      label: Values that reproduce it
+      description: The smallest values file that shows the problem.
+      render: yaml
+    validations:
+      required: true
+
+  - type: textarea
+    id: output
+    attributes:
+      label: Rendered output or error
+      description: "`helm template my-release ./charts/<chart> -f values.yaml`, or the install error."
+      render: shell
+    validations:
+      required: true

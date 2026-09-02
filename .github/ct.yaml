@@ -1,9 +1,20 @@
-# Configuration for chart-testing
+---
+# Configuration for chart-testing (https://github.com/helm/chart-testing).
+# Used by CI and by `make ct-lint` / `make ct-install`.
 target-branch: main
 chart-dirs:
   - charts
-chart-repos:
-  - bitnami=https://charts.bitnami.com/bitnami
+
+# No `chart-repos:` on purpose. Neither chart declares a dependency, so the only
+# thing an entry here bought was a `helm repo add` on every lint run — a network
+# call, and a failure mode, for nothing. Add one back the day a chart gains a
+# real dependency.
+
 helm-extra-args: --timeout 600s
+
+# The chart contract, enforced: a change that ships in the package must come
+# with a version bump. .claude/hooks/guard-chart-contract.sh checks the same
+# rule (plus the changelog entry) at commit time, minutes earlier.
 check-version-increment: true
+
 validate-maintainers: false
