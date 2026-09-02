@@ -1,0 +1,291 @@
+#!/usr/bin/env bash
+#
+# PreToolUse(Bash) guard — AGENTS.md: every change lands on a branch and is
+# merged through a reviewed PR. This blocks `git commit` on main and any
+# `git push` whose refspec would update it.
+#
+# Best-effort convenience guard, not a security control; branch protection on
+# the remote is the real one. Exit 2 blocks the call and feeds the message back.
+#
+# What it is careful about — a guard with a high false-positive rate gets
+# routinely overridden, and then it protects nothing:
+#
+#   * It judges the working tree the command will actually run in, which is not
+#     necessarily the one the hook runs in. A PreToolUse hook fires BEFORE the
+#     command and in the session's directory, so a leading `cd <worktree>` and a
+#     `git -C <dir>` are both followed and the branch re-read there.
+#   * A push is judged by its REFSPEC, not by the checked-out branch. Pushing a
+#     feature branch or a tag is fine from anywhere.
+#   * Only text a shell would EXECUTE is inspected (hook_command_skeleton drops
+#     heredoc bodies and quoted spans), so an issue or PR body that discusses
+#     committing to main is data, not a violation.
+#
+# Limitations, all the same shape: only what is spelled out in the command text
+# is seen, because the alternative is executing it to find out.
+#
+#   * A COMPUTED value is invisible. `git push origin "$(printf main)"` and
+#     `git push origin "$BRANCH"` are allowed: resolving either means running
+#     the substitution, which is exactly what a guard must not do. The literal
+#     spellings are all caught, and this is not a shape an agent reaches for by
+#     accident.
+#   * A branch or directory change made inside a script file, through `eval`,
+#     or through a variable is likewise invisible, and what follows is judged
+#     against the branch believed at that point. `bash -c "…"` IS followed;
+#     `bash script.sh` is not.
+#
+# What is deliberately NOT a limitation, because each was a real bypass:
+# quoted operands, `$(…)` and backticks (including inside double quotes and
+# inside an unquoted heredoc body), subshells, `--branches`, a refspec behind
+# `--repo`, a `cd` that would fail, and an inline `-c alias.…`.
+#
+# Escape hatch for the rare legitimate case: HELM_CHARTS_ALLOW_MAIN_COMMIT=1,
+# exported into the session or written as a prefix on the command itself — a
+# hook runs in its own process, so a prefix never reaches this script's
+# environment and has to be read off the command line.
+set -uo pipefail
+set -f # the `set -- $seg` word-splits below must not glob
+
+. "$(dirname "${BASH_SOURCE[0]}")/lib.sh"
+
+[ "${HELM_CHARTS_ALLOW_MAIN_COMMIT:-0}" = "1" ] && exit 0
+[ -t 0 ] && exit 0
+
+input="$(cat)"
+cmd="$(hook_json_field "$input" '.tool_input.command')"
+[ -n "$cmd" ] || exit 0
+
+hook_cwd="$(hook_json_field "$input" '.cwd')"
+current_dir="${hook_cwd:-${CLAUDE_PROJECT_DIR:-$PWD}}"
+
+# Refs that may only be updated through a pull request.
+is_protected() {
+  case "${1#refs/heads/}" in
+    main | master) return 0 ;;
+  esac
+  return 1
+}
+
+branch_at() { git -C "$1" rev-parse --abbrev-ref HEAD 2>/dev/null || true; }
+
+resolve_dir() {
+  # shellcheck disable=SC2088 # these are match patterns for literal input,
+  # not a tilde we expect the shell to expand — $HOME is substituted by hand.
+  case "$1" in
+    /*) printf '%s' "$1" ;;
+    "~") printf '%s' "$HOME" ;;
+    "~/"*) printf '%s/%s' "$HOME" "${1#\~/}" ;;
+    *) printf '%s/%s' "$current_dir" "$1" ;;
+  esac
+}
+
+deny_commit() {
+  hook_deny "you are on '$1' — commit to a branch instead." \
+    "Run:  git switch -c eutychus/<issue>-<slug>   as its own command, then commit." \
+    "Branch read from the tree this command runs in: $2." \
+    "Compound commands are read left to right, so 'git switch -c x && git commit' is fine." \
+    "Override a genuine exception with HELM_CHARTS_ALLOW_MAIN_COMMIT=1."
+}
+
+deny_push() {
+  hook_deny "refusing to push $1 — chart changes land on main via PR." \
+    "Push a feature branch or a release tag instead, then: gh pr create." \
+    "Pushing any other ref from this tree is allowed, whatever branch is checked out." \
+    "Override a genuine exception with HELM_CHARTS_ALLOW_MAIN_COMMIT=1."
+}
+
+# guard_push <args-after-push...> — deny when the refspec would update main.
+# $judged is the branch of the tree this push runs in.
+guard_push() {
+  local tok want_value=0 remote_seen=0 bulk=0 refs="" ref target
+  while [ "$#" -gt 0 ]; do
+    tok="$1"
+    shift
+    if [ "$want_value" -eq 1 ]; then
+      want_value=0
+      continue
+    fi
+    case "$tok" in
+      # --branches is git's own alias for --all (git >= 2.45); both push every
+      # local branch, main included.
+      --all | --branches | --mirror) bulk=1 ;;
+      # --repo names the repository, so consume its value AND count it as the
+      # remote — otherwise the next bare word is mistaken for one and the real
+      # refspec is never examined.
+      --repo)
+        want_value=1
+        remote_seen=1
+        ;;
+      -o | --push-option | --receive-pack | --exec) want_value=1 ;;
+      -* | "") ;;
+      *)
+        # first bare word is the remote, everything after it is a refspec
+        if [ "$remote_seen" -eq 0 ]; then remote_seen=1; else refs="$refs $tok"; fi
+        ;;
+    esac
+  done
+
+  [ "$bulk" -eq 1 ] && deny_push "with --all/--mirror, which includes main"
+
+  # No refspec: git pushes the current branch.
+  if [ -z "${refs// /}" ]; then
+    is_protected "$judged" && deny_push "'$judged' (the checked-out branch)"
+    return 0
+  fi
+
+  for ref in $refs; do
+    ref="${ref#+}" # +src:dst — a forced update is still an update
+    case "$ref" in
+      *:*)
+        target="${ref#*:}" # `:branch` deletes it remotely; still an update
+        [ -n "$target" ] || target="${ref%%:*}"
+        ;;
+      *) target="$ref" ;;
+    esac
+    [ "$target" = "HEAD" ] && target="$judged"
+    case "$target" in
+      refs/tags/* | refs/remotes/*) continue ;;
+    esac
+    is_protected "$target" && deny_push "'${target#refs/heads/}'"
+  done
+}
+
+# guard_checkout <args-after-checkout/switch...> — update the branch believed
+# for the rest of the chain, so `git switch -c feat && git commit` passes.
+guard_checkout() {
+  local tok create=0
+  while [ "$#" -gt 0 ]; do
+    tok="$1"
+    shift
+    case "$tok" in
+      -b | -B | -c | -C | --create | --force-create)
+        create=1
+        continue
+        ;;
+      --) return 0 ;;
+      -* | "") continue ;;
+    esac
+    if [ "$create" -eq 1 ]; then
+      effective="$tok"
+    elif git -C "$current_dir" rev-parse --verify --quiet "refs/heads/$tok" >/dev/null 2>&1; then
+      effective="$tok" # a real branch; anything else is a pathspec
+    fi
+    return 0
+  done
+}
+
+effective="$(branch_at "$current_dir")"
+
+# Split the skeleton into ordered segments on the shell sequencing operators.
+segments="$(hook_command_segments "$cmd")"
+
+while IFS= read -r seg; do
+  seg="${seg#"${seg%%[![:space:]]*}"}"
+  [ -z "$seg" ] && continue
+  # shellcheck disable=SC2086 # deliberate word-split; `set -f` disables globbing
+  set -- $seg
+  [ $# -eq 0 ] && continue
+
+  # Leading `VAR=value` environment assignments, and the documented escape hatch
+  # spelled as a prefix (a hook never sees a prefix in its own environment).
+  while [ $# -gt 0 ]; do
+    case "$1" in
+      HELM_CHARTS_ALLOW_MAIN_COMMIT=1) exit 0 ;;
+      [A-Za-z_]*=*) shift ;;
+      sudo | command | env | time | nohup) shift ;;
+      sh | bash | zsh | dash | ksh)
+        # `bash -c "git push origin main"` runs the push; judge what it runs.
+        hook_unwrap_shell "$@"
+        # shellcheck disable=SC2154 # set by hook_unwrap_shell in lib.sh
+        set -- "${unwrapped[@]}"
+        [ $# -eq 0 ] && break
+        # A shell that is not `-c` (a script file) leaves $1 unchanged; stop
+        # rather than looping on it forever.
+        case "$1" in
+          sh | bash | zsh | dash | ksh) break ;;
+        esac
+        ;;
+      *) break ;;
+    esac
+  done
+  [ $# -eq 0 ] && continue
+
+  if [ "$1" = "cd" ]; then
+    # Only follow a `cd` that would actually succeed. When it would not, the
+    # shell stays put and so must we — believing an unusable directory makes
+    # branch_at return nothing, which reads as "not protected" and fails open.
+    if [ -n "${2:-}" ] && [ "$2" != "-" ]; then
+      candidate="$(resolve_dir "$2")"
+      if [ -d "$candidate" ]; then
+        current_dir="$candidate"
+        effective="$(branch_at "$current_dir")"
+      fi
+    fi
+    continue
+  fi
+
+  [ "$1" = "git" ] || continue
+  shift
+
+  # git's own options sit before the subcommand. -C is the only one that says
+  # which tree the command operates on.
+  own_tree=1
+  alias_seen=0
+  target_dir="$current_dir"
+  while [ $# -gt 0 ]; do
+    case "$1" in
+      -C)
+        shift
+        [ $# -gt 0 ] && {
+          candidate="$(resolve_dir "$1")"
+          # An unusable -C target would make git itself fail; judging it as
+          # "no branch here" would fail open, so keep judging our own tree.
+          if [ -d "$candidate" ]; then
+            target_dir="$candidate"
+            own_tree=0
+          fi
+          shift
+        }
+        ;;
+      -c)
+        shift
+        # `git -c alias.p="push origin main" p` hides the subcommand behind a
+        # name this parser cannot resolve — and the alias body simultaneously
+        # reads as a real push, so the same command both bypasses the guard and
+        # trips it. Refuse the whole shape instead of guessing either way.
+        case "${1:-}" in
+          alias.*) alias_seen=1 ;;
+        esac
+        [ $# -gt 0 ] && shift
+        ;;
+      --git-dir | --work-tree | --namespace | --exec-path)
+        shift
+        [ $# -gt 0 ] && shift
+        ;;
+      --*=* | -*) shift ;;
+      *) break ;;
+    esac
+  done
+  if [ "$alias_seen" -eq 1 ]; then
+    hook_deny "refusing a git command that defines an alias inline." \
+      "'git -c alias.x=...' hides the real subcommand behind a name this guard" \
+      "cannot resolve, so it can neither allow nor deny it honestly." \
+      "Run the underlying git command directly, or configure the alias in a" \
+      "separate step and invoke it as its own command." \
+      "Override a genuine exception with HELM_CHARTS_ALLOW_MAIN_COMMIT=1."
+  fi
+  [ $# -gt 0 ] || continue
+
+  if [ "$own_tree" -eq 1 ]; then judged="$effective"; else judged="$(branch_at "$target_dir")"; fi
+
+  subcmd="$1"
+  shift
+  case "$subcmd" in
+    checkout | switch) [ "$own_tree" -eq 1 ] && guard_checkout "$@" ;;
+    commit) is_protected "$judged" && deny_commit "$judged" "$target_dir" ;;
+    push) guard_push "$@" ;;
+  esac
+done <<EOF
+$segments
+EOF
+
+exit 0

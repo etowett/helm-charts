@@ -1,0 +1,55 @@
+---
+name: Chart feature
+description: A new capability, parameter, or example for one of the charts
+title: "[<chart>]: "
+labels:
+  - enhancement
+body:
+  - type: dropdown
+    id: chart
+    attributes:
+      label: Chart
+      options:
+        - app
+        - cron
+        - a new chart
+    validations:
+      required: true
+
+  - type: textarea
+    id: problem
+    attributes:
+      label: What can't you express today?
+      description: The deployment you are trying to describe, and where the chart stops you.
+    validations:
+      required: true
+
+  - type: textarea
+    id: proposal
+    attributes:
+      label: Proposed values interface
+      description: >-
+        The values a user would write. This is the part that is hard to change
+        later — a values key is a public API and removing one is a major bump.
+      render: yaml
+    validations:
+      required: true
+
+  - type: dropdown
+    id: bump
+    attributes:
+      label: Expected version bump
+      options:
+        - minor (new key, backwards compatible)
+        - major (removes or renames a key, or changes a default)
+        - patch (fixes behaviour without changing the interface)
+    validations:
+      required: true
+
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Can this already be done another way?
+      description: >-
+        `extraPorts`, `volumes`/`volumeMounts`, `podAnnotations` and the sidecar
+        blocks already cover a lot. Say what you tried.

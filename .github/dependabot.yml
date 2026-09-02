@@ -1,0 +1,49 @@
+---
+# yaml-language-server: $schema=https://json.schemastore.org/dependabot-2.0.json
+#
+# Before this file existed, only Dependabot *security* updates ran (those need
+# no config), so nothing kept the action pins current between advisories. That
+# is how `actions/checkout@v3` sat in release.yml until actionlint was finally
+# wired into CI and reported it as "too old to run on GitHub Actions".
+#
+# GitHub Actions is the only ecosystem here — this repo has no Go module, no
+# package.json and no Dockerfile. `directory: /` makes Dependabot scan
+# .github/workflows.
+#
+# Grouped into exactly two PRs so the queue never becomes the wall of
+# one-per-action PRs that goes stale unread:
+#   * actions-minor-and-patch — safe bumps, review as one unit, merge on green
+#   * actions-major           — breaking bumps, reviewed on their own
+#
+# Every action in this repo is pinned to a full commit SHA with a version
+# comment. Dependabot understands that form and moves both the SHA and the
+# comment, so pinning costs nothing in maintenance.
+version: 2
+
+updates:
+  - package-ecosystem: github-actions
+    directory: /
+    target-branch: main
+    schedule:
+      interval: weekly
+      day: monday
+    open-pull-requests-limit: 3
+    commit-message:
+      prefix: chore
+      include: scope
+    labels:
+      - dependencies
+    groups:
+      actions-minor-and-patch:
+        applies-to: version-updates
+        patterns:
+          - "*"
+        update-types:
+          - minor
+          - patch
+      actions-major:
+        applies-to: version-updates
+        patterns:
+          - "*"
+        update-types:
+          - major

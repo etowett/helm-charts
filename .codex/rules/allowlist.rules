@@ -1,0 +1,116 @@
+# Command rules for the Codex CLI — mirrors .claude/settings.json.
+#
+#   permissions.allow  ->  decision="allow"       (lives in settings.local.json)
+#   permissions.ask    ->  decision="prompt"
+#   permissions.deny   ->  decision="forbidden"
+#
+# Keep both sides in sync — `make doctor` fails when they drift.
+# Docs: https://learn.chatgpt.com/docs/agent-configuration/rules
+#
+# Two things about how Codex evaluates these, which is why this is not a
+# line-for-line copy of settings.json:
+#
+#   1. Codex splits compound commands (&&, ||, ;, |) itself and evaluates each
+#      segment, so there is no equivalent of Claude's compound handling.
+#   2. `pattern` is an exact prefix over the argument list, and each element may
+#      be a union of literals. When several rules match, the most restrictive
+#      decision wins (forbidden > prompt > allow) — so a broad "allow" below can
+#      be safely narrowed by a "prompt" rule that follows it.
+
+# --- Helm: reading and rendering is free, touching a cluster is not ----------
+prefix_rule(pattern=["helm", ["lint", "template", "show", "version", "package", "dependency"]], decision="allow")
+prefix_rule(pattern=["helm", ["install", "upgrade", "uninstall", "rollback", "test"]], decision="prompt",
+            justification="Mutates a real cluster. Render with `helm template` instead when you only need the manifests.")
+prefix_rule(pattern=["helm", "repo", ["add", "update", "list"]], decision="allow")
+
+# --- Chart testing and validation --------------------------------------------
+prefix_rule(pattern=["ct", ["lint", "list-changed", "version"]], decision="allow")
+prefix_rule(pattern=["ct", "install"], decision="prompt",
+            justification="Installs both charts into a live cluster.")
+prefix_rule(pattern=["kubeconform"], decision="allow")
+
+# `make` behaviour comes from the Makefile in the working tree, and `make
+# ct-install` / `kind-up` reach a cluster — but the read-only targets are the
+# gate an agent runs constantly, so name them explicitly rather than prompting
+# on every `make`.
+prefix_rule(pattern=["make", ["help", "check", "lint", "template", "template-examples", "validate",
+                              "ct-lint", "ct-list-changed", "doctor", "test-hooks", "package",
+                              "install-kubeconform", "clean"]], decision="allow")
+prefix_rule(pattern=["make"], decision="prompt",
+            justification="Behaviour comes from the Makefile in the working tree; unlisted targets may reach a cluster.")
+
+# --- Clusters -----------------------------------------------------------------
+prefix_rule(pattern=["kubectl", ["get", "describe", "logs", "config", "version"]], decision="allow")
+prefix_rule(pattern=["kubectl", ["apply", "delete", "create", "patch", "replace", "exec"]], decision="prompt",
+            justification="Mutates a live cluster.")
+prefix_rule(pattern=["kind", ["get", "version", "export"]], decision="allow")
+prefix_rule(pattern=["kind", "create"], decision="prompt",
+            justification="Pulls a node image and starts containers.")
+prefix_rule(pattern=["kind", "delete"], decision="prompt",
+            justification="Destroys a cluster that may hold work in progress.")
+
+# --- Repo tooling and linters -------------------------------------------------
+prefix_rule(pattern=["actionlint"], decision="allow")
+prefix_rule(pattern=["shellcheck"], decision="allow")
+prefix_rule(pattern=["yamllint"], decision="allow")
+prefix_rule(pattern=["yq"], decision="allow")
+prefix_rule(pattern=["jq"], decision="allow")
+prefix_rule(pattern=["./scripts/doctor.sh"], decision="allow")
+prefix_rule(pattern=["./scripts/test-hooks.sh"], decision="allow")
+
+# --- File search and inspection ----------------------------------------------
+prefix_rule(pattern=["find"], decision="allow")
+prefix_rule(pattern=["grep"], decision="allow")
+prefix_rule(pattern=["rg"], decision="allow")
+prefix_rule(pattern=["ls"], decision="allow")
+prefix_rule(pattern=["cat"], decision="allow")
+prefix_rule(pattern=["sed"], decision="allow")
+prefix_rule(pattern=["awk"], decision="allow")
+prefix_rule(pattern=["diff"], decision="allow")
+prefix_rule(pattern=["wc"], decision="allow")
+prefix_rule(pattern=["test"], decision="allow")
+prefix_rule(pattern=["echo"], decision="allow")
+prefix_rule(pattern=["mkdir"], decision="allow")
+
+# --- Version control ----------------------------------------------------------
+# `commit` and `push` are allowed, not prompted, deliberately.
+# .claude/hooks/guard-main-branch.sh runs for both clients and DENIES a commit on
+# main and any push whose refspec resolves to it. A prompt stacked on top only
+# ever fires for the feature-branch commits that were never in scope, and a guard
+# that interrupts routine work gets clicked through until it protects nothing.
+prefix_rule(
+    pattern=[
+        "git",
+        ["status", "diff", "log", "show", "branch", "describe", "add", "checkout", "switch",
+         "fetch", "pull", "mv", "rm", "rev-parse", "ls-files", "tag", "stash", "worktree",
+         "commit", "push", "rebase"],
+    ],
+    decision="allow",
+)
+prefix_rule(pattern=["gh", ["api", "issue", "search", "label", "repo"]], decision="allow")
+prefix_rule(pattern=["gh", "run", ["list", "view", "watch"]], decision="allow")
+prefix_rule(pattern=["gh", "release", ["list", "view"]], decision="allow")
+prefix_rule(pattern=["gh", "pr", ["view", "list", "diff", "checks", "status", "create", "edit", "comment", "ready"]], decision="allow")
+
+# --- Ask first (mirrors permissions.ask) -------------------------------------
+# The test each of these passes: it destroys work, or reaches the outside world,
+# and no hook catches it. `git reset --hard` and `git clean` throw away
+# uncommitted work — the one thing git cannot get back, and the one thing
+# guard-main-branch.sh has nothing to say about.
+prefix_rule(pattern=["git", "reset", "--hard"], decision="prompt",
+            justification="Discards uncommitted work — unrecoverable, and no hook covers it.")
+prefix_rule(pattern=["git", "clean"], decision="prompt",
+            justification="Deletes untracked files — unrecoverable, and no hook covers it.")
+prefix_rule(pattern=["gh", "pr", "merge"], decision="prompt",
+            justification="The action that actually lands work on main. Opening a PR is reviewable and closable; merging is not.")
+prefix_rule(pattern=["gh", ["workflow", "release"], ["run", "create", "delete"]], decision="prompt",
+            justification="Triggers CI or publishes a chart release to gh-pages.")
+
+# --- Never (mirrors permissions.deny) ----------------------------------------
+# A kubeconfig carries cluster credentials; .env files carry everything else.
+prefix_rule(
+    pattern=[["cat", "head", "tail", "less", "more", "bat", "xxd", "base64", "strings"],
+             [".env", "kubeconfig", "config.yaml"]],
+    decision="forbidden",
+    justification="Live credentials.",
+)

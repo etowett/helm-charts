@@ -1,21 +1,41 @@
 ---
 name: Release Helm Charts
 
+# chart-releaser packages every chart whose Chart.yaml version has no matching
+# git tag yet, creates a `<chart>-<version>` GitHub release, and updates
+# index.yaml on gh-pages. The release is therefore decided in the PR, by the
+# version written in Chart.yaml — there is nothing to run by hand afterwards.
+#
+# `paths:` keeps a README-only merge from spinning this up to do nothing.
 on:
   push:
     branches:
       - main
+    paths:
+      - 'charts/**'
+      - '.github/workflows/release.yml'
+  workflow_dispatch:
+
+# Least privilege at the workflow level; the release job widens it to the one
+# permission chart-releaser needs (pushing gh-pages and creating releases).
+permissions:
+  contents: read
+
+# Two merges landing close together must not race for gh-pages. Never cancel a
+# release in flight — a half-written index.yaml is worse than a queued run.
+concurrency:
+  group: release-charts
+  cancel-in-progress: false
 
 jobs:
   release:
-    # depending on default permission settings for your org (contents being read-only or read-write for workloads), you will have to add permissions
-    # see: https://docs.github.com/en/actions/security-guides/automatic-token-authentication#modifying-the-permissions-for-the-github_token
+    name: chart-releaser
+    runs-on: ubuntu-latest
     permissions:
       contents: write
-    runs-on: ubuntu-latest
     steps:
       - name: Checkout
-        uses: actions/checkout@v3
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           fetch-depth: 0
 
@@ -25,9 +45,13 @@ jobs:
           git config user.email "$GITHUB_ACTOR@users.noreply.github.com"
 
       - name: Install Helm
-        uses: azure/setup-helm@v3
+        uses: azure/setup-helm@9bc31f4ebc9c6b171d7bfbaa5d006ae7abdb4310 # v5.0.1
+        with:
+          version: v4.2.4
 
       - name: Run chart-releaser
-        uses: helm/chart-releaser-action@v1.5.0
+        uses: helm/chart-releaser-action@cae68fefc6b5f367a0275617c9f83181ba54714f # v1.7.0
+        with:
+          skip_existing: true
         env:
           CR_TOKEN: "${{ secrets.GITHUB_TOKEN }}"

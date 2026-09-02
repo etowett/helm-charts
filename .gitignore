@@ -6,5 +6,15 @@
 /dist/
 *.tgz
 
-# Local agent configuration (per-machine, not shared).
+# `ct install --upgrade` clones the target branch here to install the chart's
+# previous version before upgrading to this one, and leaves the checkout behind
+# when a run is interrupted. It is a nested git repo — do not let it be staged.
+/ct-previous-revision*/
+
+# Local agent configuration (per-machine, not shared). Everything else under
+# .claude/, .codex/ and .agents/ is committed on purpose — see .claude/README.md.
 .claude/settings.local.json
+.claude/local/
+.claude/worktrees/
+.codex/sessions/
+.codex/history.jsonl

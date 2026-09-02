@@ -8,17 +8,21 @@
 SHELL := bash
 .SHELLFLAGS := -eu -o pipefail -c
 
-# Tool versions — keep in lockstep with .github/workflows/ci.yaml
-HELM_VERSION        ?= v3.16.4
-KIND_VERSION        ?= v0.31.0
-KUBECONFORM_VERSION ?= v0.7.0
+# Tool versions — kept in lockstep with .github/workflows/ci.yaml.
+# `make doctor` reads both files and fails when they disagree, so this is a
+# checked invariant rather than a comment nobody reads.
+HELM_VERSION        ?= v4.2.4
+KIND_VERSION        ?= v0.33.0
+KUBECONFORM_VERSION ?= v0.8.0
 
-# kind node image used by `make kind-up`. Matches the latest version CI installs against.
-KIND_NODE_IMAGE     ?= kindest/node:v1.35.0
+# kind node image used by `make kind-up`. Digest-pinned to the set built for
+# kind $(KIND_VERSION) — kind ships specific patch tags only, and the digest is
+# the one thing that guarantees an image built for this kind release.
+KIND_NODE_IMAGE     ?= kindest/node:v1.37.0@sha256:a1ed56cfb0e7b93589bdf97c8cd566405a265939e3620fc4f5de89adff580ae5
 KIND_CLUSTER        ?= chart-testing
 
 # Kubernetes versions to validate against (kubeconform schemas).
-KUBE_VERSIONS       ?= 1.33.0 1.34.0 1.35.0 1.36.0
+KUBE_VERSIONS       ?= 1.34.0 1.35.0 1.36.0 1.37.0
 
 # Output dirs
 PKG_DIR             := dist
@@ -40,6 +44,14 @@ help: ## Show this help
 .PHONY: check
 check: lint template-examples ## Quick local pre-PR checks (lint + render every example)
 	@echo "==> Local checks passed."
+
+.PHONY: doctor
+doctor: ## Check config drift: tool versions (Makefile ⇄ CI) and the Claude ⇄ Codex agent mirrors
+	@./scripts/doctor.sh
+
+.PHONY: test-hooks
+test-hooks: ## Run the agent hook tests (what CI runs)
+	@./scripts/test-hooks.sh
 
 ##@ Lint and render
 
@@ -100,8 +112,8 @@ ct-list-changed: require-ct ## List charts that changed vs main
 	ct list-changed --config .github/ct.yaml
 
 .PHONY: ct-install
-ct-install: require-ct ## Run chart-testing install against the current kubeconfig (needs `make kind-up` first)
-	ct install --config .github/ct.yaml
+ct-install: require-ct ## Run chart-testing install + upgrade against the current kubeconfig (needs `make kind-up` first)
+	ct install --config .github/ct.yaml --upgrade
 
 ##@ Kind cluster (local)
 

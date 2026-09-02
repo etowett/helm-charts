@@ -1,0 +1,9 @@
+---
+blank_issues_enabled: true
+contact_links:
+  - name: Chart documentation
+    url: https://github.com/etowett/helm-charts/tree/main/charts
+    about: Each chart has a README with its full parameter table, plus an examples/ directory of ready-to-use values files.
+  - name: How to work in this repo
+    url: https://github.com/etowett/helm-charts/blob/main/AGENTS.md
+    about: Conventions, the chart contract, the local gate, and the pitfalls worth knowing before you open a PR.
