@@ -90,8 +90,8 @@
     },
     "terminationGracePeriodSeconds": {
       "type": ["integer", "null"],
-      "minimum": 0,
-      "description": "Pod termination grace period in seconds"
+      "minimum": 1,
+      "description": "Pod termination grace period in seconds (null = Kubernetes default)"
     },
     "lifecycle": {
       "type": "object",

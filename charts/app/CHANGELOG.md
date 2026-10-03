@@ -12,7 +12,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `examples/graceful-shutdown.yaml` — zero-downtime rollout pattern: surge-first strategy, preStop on the app and an nginx sidecar, PDB alongside celery.
 
 ### Fixed
-- The PDB selector now excludes celery worker/beat/flower pods (`app.kubernetes.io/component DoesNotExist`). They share the main app's `name`/`instance` labels, so `minAvailable` could be met by worker pods alone and the only web pod could be evicted during a node drain. **Behaviour change** for releases with `pdb.enabled` and celery: drains now honour the budget for web pods.
+- The PDB selector now excludes celery worker/beat/flower pods (`app.kubernetes.io/component DoesNotExist`). They share the main app's `name`/`instance` labels, so `minAvailable` could be met by worker pods alone and the only web pod could be evicted during a node drain. **Behaviour change** for releases with `pdb.enabled` and celery: drains now honour the budget for web pods. A single-replica web app with `pdb.minAvailable: 1` now has **0 allowed disruptions** and blocks node drains: run 2+ replicas or disable the PDB.
 
 ## [1.5.1] - 2026-06-26
 
