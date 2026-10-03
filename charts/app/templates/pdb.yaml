@@ -10,4 +10,8 @@ spec:
   selector:
     matchLabels:
       {{- include "app.selectorLabels" . | nindent 6 }}
+    # Celery worker/beat/flower pods share name/instance; only they carry `component`.
+    matchExpressions:
+      - key: app.kubernetes.io/component
+        operator: DoesNotExist
 {{- end }}

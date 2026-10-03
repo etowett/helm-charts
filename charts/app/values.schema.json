@@ -88,6 +88,15 @@
       "type": "object",
       "description": "Pod labels"
     },
+    "terminationGracePeriodSeconds": {
+      "type": ["integer", "null"],
+      "minimum": 0,
+      "description": "Pod termination grace period in seconds"
+    },
+    "lifecycle": {
+      "type": "object",
+      "description": "Main container lifecycle hooks (postStart/preStop)"
+    },
     "strategy": {
       "type": "object",
       "properties": {
@@ -453,7 +462,13 @@
     },
     "sidecarimage": {
       "type": ["object", "null"],
-      "description": "Sidecar container configuration"
+      "description": "Sidecar container configuration",
+      "properties": {
+        "lifecycle": {
+          "type": "object",
+          "description": "Sidecar container lifecycle hooks (postStart/preStop)"
+        }
+      }
     },
     "hook": {
       "type": ["object", "null"],

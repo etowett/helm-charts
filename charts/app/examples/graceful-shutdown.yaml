@@ -1,0 +1,76 @@
+# Zero-downtime rollout example
+# Surge-first rolling update, fast readiness and graceful shutdown for an app
+# behind an nginx sidecar. Celery is enabled to show the PDB covers web pods only.
+
+replicaCount: 2
+
+image:
+  repository: myapp/web
+  tag: "1.0.0"
+  pullPolicy: IfNotPresent
+
+strategy:
+  type: RollingUpdate
+  rollingUpdate:
+    maxSurge: 1
+    maxUnavailable: 0
+
+commands: ["gunicorn", "--bind", "0.0.0.0:8000", "--timeout", "60", "--graceful-timeout", "60", "app.wsgi:application"]
+
+port:
+  port: 8000
+  name: gunicorn
+  protocol: TCP
+
+service:
+  type: ClusterIP
+  port: 80
+  targetPort: http
+
+readinessProbe:
+  path: /healthz
+  port: 8000
+  initialDelaySeconds: 5
+  periodSeconds: 5
+  timeoutSeconds: 5
+
+# preStop (10s) + app drain (60s) + headroom
+terminationGracePeriodSeconds: 80
+
+lifecycle:
+  preStop:
+    exec:
+      command: ["sleep", "10"]
+
+sidecarimage:
+  name: nginx
+  repository: nginx
+  tag: 1.31-alpine
+  pullPolicy: IfNotPresent
+  ports:
+    - name: http
+      containerPort: 80
+      protocol: TCP
+  resources:
+    limits:
+      cpu: 200m
+      memory: 128Mi
+    requests:
+      cpu: 50m
+      memory: 64Mi
+  # SIGTERM is a fast shutdown for nginx: quit gracefully and hold preStop until it has drained.
+  lifecycle:
+    preStop:
+      exec:
+        command: ["sh", "-c", "sleep 10; nginx -s quit; while pgrep -x nginx >/dev/null; do sleep 1; done"]
+
+pdb:
+  enabled: true
+  minAvailable: 1
+
+celery:
+  enabled: true
+  worker:
+    enabled: true
+    replicaCount: 2
+    command: ["celery", "-A", "app", "worker"]
