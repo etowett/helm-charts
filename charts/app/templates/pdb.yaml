@@ -10,8 +10,10 @@ spec:
   selector:
     matchLabels:
       {{- include "app.selectorLabels" . | nindent 6 }}
-    # Celery worker/beat/flower pods share name/instance; only they carry `component`.
+    # Celery pods share name/instance with the web pods. NotIn also matches pods
+    # with no `component` label, so web pods are covered with or without one.
     matchExpressions:
       - key: app.kubernetes.io/component
-        operator: DoesNotExist
+        operator: NotIn
+        values: [celery-worker, celery-beat, celery-flower]
 {{- end }}

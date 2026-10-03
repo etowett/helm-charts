@@ -179,7 +179,8 @@ The following table lists the configurable parameters of the chart and their def
 | `pdb.minAvailable` | Minimum available pods | `1` |
 
 The PDB selects only the main app's pods: celery worker/beat/flower pods are excluded via an
-`app.kubernetes.io/component DoesNotExist` expression.
+`app.kubernetes.io/component NotIn [celery-worker, celery-beat, celery-flower]` expression, so a
+web pod with its own `component` label (e.g. via `podLabels`) is still covered.
 
 ### Graceful Shutdown Parameters
 

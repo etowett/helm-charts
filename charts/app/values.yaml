@@ -552,6 +552,8 @@ initContainer:
 ##
 
 ## @param sidecarimage Sidecar container configuration
+## @param sidecarimage.lifecycle Sidecar lifecycle hooks (same shape as `lifecycle`), e.g. a preStop that
+##   quits nginx gracefully and waits for it to drain
 ## Example:
 ## sidecarimage:
 ##   name: nginx-proxy

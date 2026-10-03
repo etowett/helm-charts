@@ -5,10 +5,10 @@ All notable changes to this Helm chart will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [2.0.0] - 2026-10-03
+## [1.6.0] - 2026-10-03
 
-### Changed (breaking)
-- The PDB selector now excludes celery worker/beat/flower pods (`app.kubernetes.io/component DoesNotExist`). They share the main app's `name`/`instance` labels, so `minAvailable` could be met by worker pods alone and the only web pod could be evicted during a node drain. Releases with `pdb.enabled` and celery enabled now budget web pods only. A single-replica web app with `pdb.minAvailable: 1` now has **0 allowed disruptions** and blocks node drains: run 2+ replicas or set `pdb.enabled: false` before upgrading.
+### Changed
+- The PDB selector now excludes celery worker/beat/flower pods (`app.kubernetes.io/component NotIn [celery-worker, celery-beat, celery-flower]`). Web pods are still selected whether or not they carry their own `component` label. They share the main app's `name`/`instance` labels, so `minAvailable` could be met by worker pods alone and the only web pod could be evicted during a node drain. Releases with `pdb.enabled` and celery enabled now budget web pods only. A single-replica web app with `pdb.minAvailable: 1` now has **0 allowed disruptions** and blocks node drains: run 2+ replicas or set `pdb.enabled: false` before upgrading.
 
 ### Added
 - `terminationGracePeriodSeconds`, `lifecycle` and `sidecarimage.lifecycle` for graceful shutdown. A `preStop` sleep lets endpoint removal propagate before SIGTERM; a grace period longer than the app's request timeout stops in-flight requests being SIGKILLed.
