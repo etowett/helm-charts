@@ -101,6 +101,21 @@ strategy:
     maxUnavailable: 1
     maxSurge: 0
 
+## Graceful shutdown
+## @param terminationGracePeriodSeconds Pod termination grace period. Must exceed preStop time plus the
+##   app's own drain time, or in-flight requests are SIGKILLed. Unset uses the Kubernetes default (30s).
+## @param lifecycle Main container lifecycle hooks, e.g. a preStop sleep so endpoint removal propagates
+##   before SIGTERM. The sidecar takes the same shape as `sidecarimage.lifecycle`.
+## Example:
+## terminationGracePeriodSeconds: 60
+## lifecycle:
+##   preStop:
+##     exec:
+##       command: ["sleep", "10"]
+##
+terminationGracePeriodSeconds: null
+lifecycle: {}
+
 ## @param podSecurityContext Pod security context
 ## Example:
 ## podSecurityContext:
@@ -537,6 +552,8 @@ initContainer:
 ##
 
 ## @param sidecarimage Sidecar container configuration
+## @param sidecarimage.lifecycle Sidecar lifecycle hooks (same shape as `lifecycle`), e.g. a preStop that
+##   quits nginx gracefully and waits for it to drain
 ## Example:
 ## sidecarimage:
 ##   name: nginx-proxy
@@ -556,6 +573,10 @@ initContainer:
 ##     port: 8080
 ##     periodSeconds: 5
 ##     failureThreshold: 30
+##   lifecycle:
+##     preStop:
+##       exec:
+##         command: ["sh", "-c", "sleep 10; nginx -s quit; while pgrep -x nginx >/dev/null; do sleep 1; done"]
 ##
 sidecarimage: {}
 

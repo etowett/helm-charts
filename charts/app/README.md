@@ -178,6 +178,17 @@ The following table lists the configurable parameters of the chart and their def
 | `pdb.enabled` | Enable pod disruption budget | `false` |
 | `pdb.minAvailable` | Minimum available pods | `1` |
 
+The PDB selects only the main app's pods: celery worker/beat/flower pods are excluded via an
+`app.kubernetes.io/component NotIn [celery-worker, celery-beat, celery-flower]` expression, so a
+web pod with its own `component` label (e.g. via `podLabels`) is still covered.
+
+### Graceful Shutdown Parameters
+
+| Parameter | Description | Default |
+|-----------|-------------|---------|
+| `terminationGracePeriodSeconds` | Pod termination grace period. Must exceed preStop time plus the app's drain time. | `null` (Kubernetes default, 30s) |
+| `lifecycle` | Main container lifecycle hooks, e.g. a `preStop` sleep so endpoint removal propagates before SIGTERM | `{}` |
+
 ### Storage Parameters
 
 | Parameter | Description | Default |
@@ -233,6 +244,7 @@ The following table lists the configurable parameters of the chart and their def
 | `sidecarimage.livenessProbe` | Sidecar liveness probe | - |
 | `sidecarimage.readinessProbe` | Sidecar readiness probe | - |
 | `sidecarimage.startupProbe` | Sidecar startup probe (same shape as the main container's `startupProbe`) | - |
+| `sidecarimage.lifecycle` | Sidecar lifecycle hooks (same shape as `lifecycle`) | - |
 
 ### Hook Parameters
 

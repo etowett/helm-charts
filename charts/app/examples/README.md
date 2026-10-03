@@ -129,6 +129,21 @@ String fields in the constraints are processed through `tpl`, so
 helm install my-app ./charts/app -f ./charts/app/examples/with-topology-spread.yaml
 ```
 
+### 10. Zero-Downtime Rollout with Graceful Shutdown
+**File:** `graceful-shutdown.yaml`
+
+Rollouts and drains that drop no requests:
+- Surge-first strategy (`maxSurge: 1`, `maxUnavailable: 0`)
+- `preStop` sleep on the app so endpoint removal propagates before SIGTERM
+- nginx sidecar `preStop` that quits gracefully and waits for it to drain
+- `terminationGracePeriodSeconds` covering preStop plus the app's drain time
+- PDB alongside celery, showing the budget counts web pods only
+
+**Usage:**
+```bash
+helm install my-app ./charts/app -f ./charts/app/examples/graceful-shutdown.yaml
+```
+
 ## Combining Examples
 
 You can combine multiple example files to use features from different examples:

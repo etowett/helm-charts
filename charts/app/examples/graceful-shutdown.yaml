@@ -1,0 +1,119 @@
+# Zero-downtime rollout example
+# Surge-first rolling update, fast readiness and graceful shutdown for a gunicorn
+# app behind an nginx sidecar. The Service targets nginx (`http`), which proxies to
+# gunicorn on 127.0.0.1:8000. Celery is enabled, and the web pods carry their own
+# `component: web` label, to show the PDB covers web pods and only web pods.
+
+replicaCount: 2
+
+image:
+  repository: myapp/web
+  tag: "1.0.0"
+  pullPolicy: IfNotPresent
+
+podLabels:
+  app.kubernetes.io/component: web
+
+strategy:
+  type: RollingUpdate
+  rollingUpdate:
+    maxSurge: 1
+    maxUnavailable: 0
+
+commands: ["gunicorn", "--bind", "0.0.0.0:8000", "--timeout", "60", "--graceful-timeout", "60", "app.wsgi:application"]
+
+port:
+  port: 8000
+  name: gunicorn
+  protocol: TCP
+
+service:
+  type: ClusterIP
+  port: 80
+  targetPort: http
+
+readinessProbe:
+  path: /healthz
+  port: 8000
+  initialDelaySeconds: 5
+  periodSeconds: 5
+  timeoutSeconds: 5
+
+# preStop (15s) + gunicorn drain (60s) + headroom
+terminationGracePeriodSeconds: 80
+
+# 15s, longer than nginx's 10s, so nginx stops accepting before gunicorn closes its listener.
+lifecycle:
+  preStop:
+    exec:
+      command: ["sleep", "15"]
+
+configMaps:
+  - name: graceful-shutdown-nginx
+    data:
+      default.conf: |-
+        server {
+            listen 80;
+            location /nginx-health {
+                return 200 'ok';
+            }
+            location / {
+                proxy_pass http://127.0.0.1:8000;
+                proxy_set_header Host $host;
+                proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+                # Match gunicorn's --timeout so nginx never cuts a request gunicorn would finish.
+                proxy_connect_timeout 60s;
+                proxy_send_timeout 60s;
+                proxy_read_timeout 60s;
+            }
+        }
+
+volumes:
+  - name: nginx-conf
+    configMap:
+      name: graceful-shutdown-nginx
+
+sidecarimage:
+  name: nginx
+  repository: nginx
+  tag: 1.31-alpine
+  pullPolicy: IfNotPresent
+  ports:
+    - name: http
+      containerPort: 80
+      protocol: TCP
+  # Replaces the image's default.conf, which serves static HTML instead of proxying.
+  mounts:
+    - name: nginx-conf
+      mountPath: /etc/nginx/conf.d
+      readOnly: true
+  readinessProbe:
+    path: /nginx-health
+    port: 80
+    initialDelaySeconds: 5
+    periodSeconds: 5
+    timeoutSeconds: 3
+  resources:
+    limits:
+      cpu: 200m
+      memory: 128Mi
+    requests:
+      cpu: 50m
+      memory: 64Mi
+  # SIGTERM is a fast shutdown for nginx: quit gracefully and hold preStop until it has
+  # drained. Needs pgrep (busybox, alpine tags only).
+  lifecycle:
+    preStop:
+      exec:
+        command: ["sh", "-c", "sleep 10; nginx -s quit; while pgrep -x nginx >/dev/null; do sleep 1; done"]
+
+pdb:
+  enabled: true
+  minAvailable: 1
+
+celery:
+  enabled: true
+  worker:
+    enabled: true
+    replicaCount: 2
+    command: ["celery", "-A", "app", "worker"]
