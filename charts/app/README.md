@@ -251,7 +251,7 @@ web pod with its own `component` label (e.g. via `podLabels`) is still covered.
 | Parameter | Description | Default |
 |-----------|-------------|---------|
 | `hook` | Pre-install/pre-upgrade hook configuration | - |
-| `hook.name` | Hook job name | - |
+| `hook.name` | Hook job name. Each command runs as Job `<release>-<hook.name>-<index>` (stable across renders; replaced on the next sync via `before-hook-creation`) | - |
 | `hook.image.repository` | Hook image repository | - |
 | `hook.image.tag` | Hook image tag | - |
 | `hook.image.pullPolicy` | Hook image pull policy | - |
