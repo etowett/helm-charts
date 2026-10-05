@@ -111,7 +111,19 @@ jobs:
           fi
 
       - name: Run chart-testing (lint)
-        run: ct lint --config .github/ct.yaml
+        run: |
+          set -euo pipefail
+          # ct counts any file under charts/<name>/ as a change needing a bump; the
+          # contract (AGENTS.md) exempts README.md, CHANGELOG.md and examples/.
+          # Same filter as .claude/hooks/guard-chart-contract.sh.
+          packaged=$(git diff --name-only "origin/main...HEAD" -- charts |
+            grep -vE '^charts/[^/]+/(README\.md|CHANGELOG\.md|examples/)' || true)
+          if [[ -n "${packaged}" ]]; then
+            ct lint --config .github/ct.yaml
+          else
+            echo "Only exempt files changed; skipping the version-increment check."
+            ct lint --config .github/ct.yaml --check-version-increment=false
+          fi
 
       - name: Render default values for every chart
         run: |

@@ -255,7 +255,7 @@ web pod with its own `component` label (e.g. via `podLabels`) is still covered.
 | `hook.image.repository` | Hook image repository | - |
 | `hook.image.tag` | Hook image tag | - |
 | `hook.image.pullPolicy` | Hook image pull policy | - |
-| `hook.commands` | List of commands to run | - |
+| `hook.commands` | List of commands to run. The Job name's index follows command order, so reordering commands renames the Jobs | - |
 | `hook.backoffLimit` | Hook job backoff limit | - |
 | `hook.ttlSecondsAfterFinished` | TTL for completed hook jobs | `3600` |
 | `hook.activeDeadlineSeconds` | Active deadline for hook jobs | - |

@@ -8,7 +8,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [1.7.0] - 2026-10-05
 
 ### Changed
-- Hook Jobs are named `<release>-<hook.name>-<index>` (index of the entry in `hook.commands`, from 0) instead of ending in a random 8-character suffix, and the delete policy is now `before-hook-creation,hook-succeeded`. Argo CD adds `argocd.argoproj.io/hook-finalizer` to hook Jobs and only removes it on a hook with the same name; with a fresh random name on every render, a Job whose sync lost track of it stayed `Terminating` forever, untouchable by `ttlSecondsAfterFinished`, and a failed one kept `KubeJobFailed` firing. A stable name lets the next sync replace it. The `<release>-<hook.name>` prefix is trimmed to 60 characters so the index always survives. Values are unchanged; Jobs left behind by earlier versions under random names are not adopted and need a one-off cleanup.
+- Hook Jobs are named `<release>-<hook.name>-<index>` (index of the entry in `hook.commands`, from 0) instead of ending in a random 8-character suffix, and the delete policy is now `before-hook-creation,hook-succeeded`. Argo CD adds `argocd.argoproj.io/hook-finalizer` to hook Jobs and only clears it on a hook with the same name; with a fresh random name on every render, a hook whose sync op lost track of it was never touched again. With a stable name the next sync replaces it and clears its finalizer. `ttlSecondsAfterFinished` behaviour is unchanged. The `<release>-<hook.name>` prefix is trimmed to 60 characters so the index always survives. Values are unchanged, but consumers with `hook` set see a one-time Job rename on upgrade; Jobs left behind by earlier versions under random names are not adopted and need a one-off cleanup.
 
 ## [1.6.0] - 2026-10-03
 
