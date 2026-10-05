@@ -6,12 +6,15 @@
 {{- $app := .Values.app -}}
 
 {{- if $hook -}}
-{{- range $command := .Values.hook.commands }}
+{{- range $i, $command := .Values.hook.commands }}
 ---
 apiVersion: batch/v1
 kind: Job
 metadata:
-  name: {{ $release_name }}-{{ $hook.name }}-{{ randAlphaNum 8 | lower }}
+  {{- /* Stable per command, so the next sync's hook replaces this one. Argo CD
+       only clears its hook finalizer on a hook of the same name; a random suffix
+       left old Jobs terminating forever. Prefix trimmed so the index survives. */}}
+  name: {{ printf "%s-%s" $release_name $hook.name | trunc 60 | trimSuffix "-" }}-{{ $i }}
   labels:
     {{- if $app }}
     app_name: {{ $app.name }}
@@ -25,7 +28,7 @@ metadata:
     helm.sh/chart: "{{ $chart_name }}-{{ $chart_version }}"
   annotations:
     "helm.sh/hook": pre-install,pre-upgrade
-    "helm.sh/hook-delete-policy": hook-succeeded
+    "helm.sh/hook-delete-policy": before-hook-creation,hook-succeeded
     "helm.sh/hook-weight": "0"
 spec:
   backoffLimit: {{ $hook.backoffLimit }}
