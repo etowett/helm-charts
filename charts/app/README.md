@@ -293,6 +293,8 @@ web pod with its own `component` label (e.g. via `podLabels`) is still covered.
 
 #### Celery Beat Parameters
 
+Beat always runs as a single replica with the `Recreate` strategy, by design and not configurable: a second scheduler would send every periodic task twice.
+
 | Parameter | Description | Default |
 |-----------|-------------|---------|
 | `celery.beat.enabled` | Enable Celery beat scheduler | `false` |
