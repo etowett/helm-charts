@@ -146,6 +146,16 @@ jobs:
             done
           done
 
+      # Beat must be a singleton: RollingUpdate overlaps two schedulers on every
+      # rollout and sends each periodic task twice (gh-29).
+      # yq is mikefarah yq v4, preinstalled on ubuntu-latest (not pinned in env:).
+      - name: Celery beat is a Recreate singleton
+        run: |
+          set -euo pipefail
+          helm template app-ci charts/app -f charts/app/examples/celery-workers.yaml \
+            -s templates/celery-beat-deployment.yaml |
+            yq -e '.spec.replicas == 1 and .spec.strategy.type == "Recreate" and (.spec.strategy | has("rollingUpdate") | not)'
+
   validate-manifests:
     name: Validate (k8s ${{ matrix.k8s }})
     runs-on: ubuntu-latest

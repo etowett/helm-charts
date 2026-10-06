@@ -5,6 +5,12 @@ All notable changes to this Helm chart will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.8.0] - 2026-10-07
+
+### Changed
+- **Upgrade note (server-side apply only):** upgrading an existing release with celery beat enabled fails with `spec.strategy.rollingUpdate: Forbidden: may not be specified when strategy type is 'Recreate'` when the Deployment is applied server-side, because the defaulted `rollingUpdate` field has no owner and server-side apply never removes it. Helm 4's `--server-side=auto` reuses the previous release's apply method, so releases first installed by Helm 3 or with `--server-side=false`, and Argo CD with its default client-side sync, upgrade cleanly. Only releases first installed with Helm 4 defaults, or synced by Argo CD with `ServerSideApply=true`, are hit. One-time fix, either: run this one upgrade with `helm upgrade --server-side=false`; or, before upgrading, `kubectl patch deploy <release>-celery-beat --type=json -p '[{"op":"remove","path":"/spec/strategy/rollingUpdate"},{"op":"replace","path":"/spec/strategy/type","value":"Recreate"}]'`. Later upgrades need nothing.
+- The celery beat Deployment now uses `strategy.type: Recreate` (not configurable). It set no strategy, so it got the default RollingUpdate, which at one replica starts the new beat pod before the old one stops: two schedulers ran during every rollout and periodic tasks were sent twice. Rollouts now have a short gap with no scheduler instead (the old pod is fully gone, up to the pod's termination grace period, before the new one starts; Kubernetes default 30s, the chart's `terminationGracePeriodSeconds` value does not apply to beat): interval schedules catch up on start, but a crontab tick that falls inside the gap is skipped.
+
 ## [1.7.0] - 2026-10-05
 
 ### Changed

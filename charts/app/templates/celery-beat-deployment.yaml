@@ -7,7 +7,12 @@ metadata:
     {{- include "app.labels" . | nindent 4 }}
     app.kubernetes.io/component: celery-beat
 spec:
+  # Beat is a singleton: a second scheduler sends every periodic task twice.
+  # Recreate stops the old pod before starting the new one; RollingUpdate
+  # (the default) would overlap them for the length of every rollout.
   replicas: 1
+  strategy:
+    type: Recreate
   selector:
     matchLabels:
       {{- include "app.selectorLabels" . | nindent 6 }}
