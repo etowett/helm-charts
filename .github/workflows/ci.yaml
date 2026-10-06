@@ -148,6 +148,7 @@ jobs:
 
       # Beat must be a singleton: RollingUpdate overlaps two schedulers on every
       # rollout and sends each periodic task twice (gh-29).
+      # yq is mikefarah yq v4, preinstalled on ubuntu-latest (not pinned in env:).
       - name: Celery beat is a Recreate singleton
         run: |
           set -euo pipefail
