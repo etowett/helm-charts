@@ -91,7 +91,8 @@ podAnnotations: {}
 podLabels: {}
 
 ## @param commonLabels Labels added to every resource the release renders: CronJobs, their Jobs and pods, and the helper resources.
-## Don't redefine app.kubernetes.io/name or app.kubernetes.io/instance: the chart sets those.
+## The schema rejects the labels the chart sets itself (app.kubernetes.io/{name,instance,component,version,managed-by}, helm.sh/chart).
+## On pods, a podLabels key wins over the same commonLabels key.
 ##
 commonLabels: {}
 

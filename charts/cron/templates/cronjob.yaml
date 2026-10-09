@@ -76,10 +76,7 @@ spec:
           labels:
             {{- include "cron.selectorLabels" $root | nindent 12 }}
             app.kubernetes.io/component: {{ $jobName | quote }}
-            {{- with $root.Values.commonLabels }}
-            {{- toYaml . | nindent 12 }}
-            {{- end }}
-            {{- with $cfg.podLabels }}
+            {{- with mergeOverwrite (deepCopy ($root.Values.commonLabels | default dict)) (deepCopy ($cfg.podLabels | default dict)) }}
             {{- toYaml . | nindent 12 }}
             {{- end }}
         spec:

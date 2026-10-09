@@ -83,8 +83,20 @@
     "podLabels": { "type": "object", "description": "Labels added to job pods." },
     "commonLabels": {
       "type": "object",
-      "description": "Labels added to every resource the release renders.",
-      "additionalProperties": { "type": "string" }
+      "description": "Labels added to every resource the release renders. The chart sets the standard labels itself.",
+      "additionalProperties": { "type": "string" },
+      "propertyNames": {
+        "not": {
+          "enum": [
+            "app.kubernetes.io/name",
+            "app.kubernetes.io/instance",
+            "app.kubernetes.io/component",
+            "app.kubernetes.io/version",
+            "app.kubernetes.io/managed-by",
+            "helm.sh/chart"
+          ]
+        }
+      }
     },
     "podSecurityContext": { "type": "object", "description": "Pod-level security context." },
     "securityContext": { "type": "object", "description": "Container-level security context." },
@@ -98,7 +110,12 @@
       "description": "Override the container args.",
       "items": { "type": "string" }
     },
-    "containerName": { "type": "string", "description": "Name of the main container; defaults to the cronjob key." },
+    "containerName": {
+      "type": "string",
+      "description": "Name of the main container; defaults to the cronjob key.",
+      "pattern": "^([a-z0-9]([-a-z0-9]*[a-z0-9])?)?$",
+      "maxLength": 63
+    },
     "workingDir": { "type": "string", "description": "Working directory for the main container." },
     "resources": { "type": "object", "description": "Resource limits and requests." },
     "lifecycle": { "type": "object", "description": "Lifecycle hooks for the main container." },

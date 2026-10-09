@@ -65,7 +65,7 @@ cronjobs:
 
 This renders two CronJobs (`my-crons-nightly-cleanup`, `my-crons-hourly-sync`) sharing one image and base env, each with its own schedule and overrides.
 
-Cronjob map keys are normalized to DNS-1123 labels (e.g. `Nightly_Cleanup` becomes `nightly-cleanup`) for resource names, container names, and label values. Each cron's resources carry `app.kubernetes.io/component: <name>`, so a single cron's jobs and pods can be selected on their own.
+Cronjob map keys are normalized to DNS-1123 labels (e.g. `Nightly_Cleanup` becomes `nightly-cleanup`) for resource names, container names (unless `containerName` is set, which is used as given and must already be a DNS-1123 label), and label values. Each cron's resources carry `app.kubernetes.io/component: <name>`, so a single cron's jobs and pods can be selected on their own.
 
 ## Configuration
 

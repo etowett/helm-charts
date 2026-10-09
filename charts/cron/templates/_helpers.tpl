@@ -241,8 +241,12 @@ initContainers:
     {{- end }}
   {{- end }}
 {{- end }}
+{{- $containerName := $cfg.containerName | default $name }}
+{{- if or (gt (len $containerName) 63) (not (regexMatch "^[a-z0-9]([-a-z0-9]*[a-z0-9])?$" $containerName)) }}
+{{- fail (printf "containerName %q must be a DNS-1123 label (lowercase alphanumerics and '-', at most 63 characters)" $containerName) }}
+{{- end }}
 containers:
-  - name: {{ $cfg.containerName | default $name }}
+  - name: {{ $containerName }}
     image: "{{ $cfg.image.repository }}:{{ $cfg.image.tag | default $root.Chart.AppVersion }}"
     imagePullPolicy: {{ $cfg.image.pullPolicy }}
     {{- with $cfg.commands }}
