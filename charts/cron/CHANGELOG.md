@@ -5,6 +5,15 @@ All notable changes to this Helm chart will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.1.1] - 2026-10-09
+
+### Fixed
+- A per-job `false` or `0` now overrides the shared value, as documented ("per-job value wins"). In 0.1.0 the merge only filled empty keys, so e.g. a per-job `suspend: false` under a shared `suspend: true` stayed suspended, and a per-job `job.backoffLimit: 0` under a shared `3` stayed 3. If your values relied on that being ignored, the job now changes when you upgrade. A per-job `null` still can't unset a shared value: Helm drops nulls before the merge.
+
+### Added
+- `containerName`: name of the main container, shared or per-job; defaults to the cronjob key. Lets a release adopt existing CronJobs whose container has another name, without server-side apply leaving both containers in the pod.
+- `commonLabels`: labels added to every resource the release renders, including each CronJob's Job and pod templates. `podLabels` still reaches pods only.
+
 ## [0.1.0] - 2026-07-17
 
 ### Added

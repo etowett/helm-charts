@@ -40,6 +40,9 @@ helm.sh/chart: {{ include "cron.chart" . }}
 app.kubernetes.io/version: {{ .Chart.AppVersion | quote }}
 {{- end }}
 app.kubernetes.io/managed-by: {{ .Release.Service }}
+{{- with .Values.commonLabels }}
+{{ toYaml . }}
+{{- end }}
 {{- end }}
 
 {{/*
@@ -74,12 +77,12 @@ Create the name of the service account to use
 {{/*
 cron.merged — compute the effective configuration for a single cronjob entry.
 Takes a dict {root, job}. Returns YAML of the shared defaults deep-merged with the per-job
-override (the per-job value wins). Release-scoped keys (serviceAccount, helper resources, the
+override (the per-job value wins, including false and 0). Release-scoped keys (serviceAccount, helper resources, the
 cronjobs map itself) are excluded so they are never merged into an individual job.
 */}}
 {{- define "cron.merged" -}}
-{{- $shared := omit .root.Values "nameOverride" "fullnameOverride" "serviceAccount" "configMaps" "externalSecrets" "pvc" "networkPolicy" "rbac" "cronjobs" -}}
-{{- merge (deepCopy .job) (deepCopy $shared) | toYaml -}}
+{{- $shared := omit .root.Values "nameOverride" "fullnameOverride" "serviceAccount" "configMaps" "externalSecrets" "pvc" "networkPolicy" "rbac" "cronjobs" "commonLabels" -}}
+{{- mergeOverwrite (deepCopy $shared) (deepCopy .job) | toYaml -}}
 {{- end -}}
 
 {{/*
@@ -238,8 +241,12 @@ initContainers:
     {{- end }}
   {{- end }}
 {{- end }}
+{{- $containerName := $cfg.containerName | default $name }}
+{{- if or (gt (len $containerName) 63) (not (regexMatch "^[a-z0-9]([-a-z0-9]*[a-z0-9])?$" $containerName)) }}
+{{- fail (printf "containerName %q must be a DNS-1123 label (lowercase alphanumerics and '-', at most 63 characters)" $containerName) }}
+{{- end }}
 containers:
-  - name: {{ $name }}
+  - name: {{ $containerName }}
     image: "{{ $cfg.image.repository }}:{{ $cfg.image.tag | default $root.Chart.AppVersion }}"
     imagePullPolicy: {{ $cfg.image.pullPolicy }}
     {{- with $cfg.commands }}

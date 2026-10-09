@@ -5,7 +5,8 @@
 # This chart deploys one or more Kubernetes CronJobs from a single release. Every top-level key
 # below is a SHARED DEFAULT that applies to every entry in `cronjobs`. Each entry under `cronjobs`
 # may override any of these keys for that one job. Overrides are deep-merged over the shared
-# defaults (per-job value wins; maps such as `env` are merged key-by-key, lists are replaced).
+# defaults (per-job value wins, including false and 0; maps such as `env` are merged key-by-key,
+# lists are replaced). A per-job null can't unset a shared value: Helm drops nulls before the merge.
 #
 # Minimal usage:
 #   image:
@@ -89,6 +90,12 @@ podAnnotations: {}
 ##
 podLabels: {}
 
+## @param commonLabels Labels added to every resource the release renders: CronJobs, their Jobs and pods, and the helper resources.
+## The schema rejects the labels the chart sets itself (app.kubernetes.io/{name,instance,component,version,managed-by}, helm.sh/chart).
+## On pods, a podLabels key wins over the same commonLabels key.
+##
+commonLabels: {}
+
 ## @section Security parameters
 ##
 
@@ -130,6 +137,10 @@ securityContext: {}
 ##
 commands: []
 args: []
+
+## @param containerName Name of the main container (defaults to the cronjob's key). Set it to adopt existing CronJobs whose container has another name
+##
+containerName: ""
 
 ## @param workingDir Working directory for the main container
 ##
