@@ -32,6 +32,9 @@ spec:
       labels:
         {{- include "cron.selectorLabels" $root | nindent 8 }}
         app.kubernetes.io/component: {{ $jobName | quote }}
+        {{- with $root.Values.commonLabels }}
+        {{- toYaml . | nindent 8 }}
+        {{- end }}
     spec:
       {{- if not (kindIs "invalid" $j.backoffLimit) }}
       backoffLimit: {{ $j.backoffLimit | int64 }}
@@ -73,6 +76,9 @@ spec:
           labels:
             {{- include "cron.selectorLabels" $root | nindent 12 }}
             app.kubernetes.io/component: {{ $jobName | quote }}
+            {{- with $root.Values.commonLabels }}
+            {{- toYaml . | nindent 12 }}
+            {{- end }}
             {{- with $cfg.podLabels }}
             {{- toYaml . | nindent 12 }}
             {{- end }}

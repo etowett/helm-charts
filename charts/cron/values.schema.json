@@ -81,6 +81,11 @@
     "annotations": { "type": "object", "description": "Annotations applied to every CronJob." },
     "podAnnotations": { "type": "object", "description": "Annotations added to job pods." },
     "podLabels": { "type": "object", "description": "Labels added to job pods." },
+    "commonLabels": {
+      "type": "object",
+      "description": "Labels added to every resource the release renders.",
+      "additionalProperties": { "type": "string" }
+    },
     "podSecurityContext": { "type": "object", "description": "Pod-level security context." },
     "securityContext": { "type": "object", "description": "Container-level security context." },
     "commands": {
@@ -93,6 +98,7 @@
       "description": "Override the container args.",
       "items": { "type": "string" }
     },
+    "containerName": { "type": "string", "description": "Name of the main container; defaults to the cronjob key." },
     "workingDir": { "type": "string", "description": "Working directory for the main container." },
     "resources": { "type": "object", "description": "Resource limits and requests." },
     "lifecycle": { "type": "object", "description": "Lifecycle hooks for the main container." },

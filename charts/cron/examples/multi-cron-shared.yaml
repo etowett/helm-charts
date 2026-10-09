@@ -1,10 +1,18 @@
 # Several related cronjobs in one release, sharing a common image, env, security context, and
 # resources. Each entry overrides only what it needs. Demonstrates the shared-defaults pattern
-# and a per-job concurrencyPolicy / secretEnv override.
+# and a per-job concurrencyPolicy / secretEnv override, commonLabels on every resource, a per-job
+# false overriding a shared true (suspend), and a per-job containerName.
 image:
   repository: myrepo/worker
   tag: "v1.2.3"
   pullPolicy: IfNotPresent
+
+# On every CronJob, Job and pod in the release.
+commonLabels:
+  app.kubernetes.io/part-of: worker
+
+# Every job starts suspended unless it sets suspend: false.
+suspend: true
 
 # Shared across every cronjob below.
 env:
@@ -40,11 +48,14 @@ job:
 cronjobs:
   nightly-cleanup:
     schedule: "0 2 * * *"
+    suspend: false
+    containerName: cleanup
     commands: ["/bin/sh"]
     args: ["-c", "bin/cleanup"]
 
   hourly-sync:
     schedule: "0 * * * *"
+    suspend: false
     concurrencyPolicy: Replace
     commands: ["/bin/sh"]
     args: ["-c", "bin/sync"]

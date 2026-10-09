@@ -39,7 +39,7 @@ helm uninstall my-crons
 
 ## How it works
 
-Every top-level key in `values.yaml` is a **shared default**. Each entry under `cronjobs` is a named CronJob (`<release-fullname>-<name>`) that may **override any shared key**. Overrides are deep-merged over the defaults: the per-job value wins, maps such as `env` merge key-by-key, and lists such as `args` or `sidecars` are replaced wholesale.
+Every top-level key in `values.yaml` is a **shared default**. Each entry under `cronjobs` is a named CronJob (`<release-fullname>-<name>`) that may **override any shared key**. Overrides are deep-merged over the defaults: the per-job value wins, maps such as `env` merge key-by-key, and lists such as `args` or `sidecars` are replaced wholesale. A per-job `false` or `0` wins too. A per-job `null` can't unset a shared value, because Helm drops nulls before the merge.
 
 ```yaml
 image:
@@ -102,6 +102,7 @@ Cronjob map keys are normalized to DNS-1123 labels (e.g. `Nightly_Cleanup` becom
 | `annotations` | Annotations applied to every CronJob resource's metadata | `{}` |
 | `podAnnotations` | Annotations added to every job pod | `{}` |
 | `podLabels` | Labels added to every job pod | `{}` |
+| `commonLabels` | Labels added to every resource the release renders (CronJobs, Job and pod templates, helper resources) | `{}` |
 
 ### Security Parameters
 
@@ -129,6 +130,7 @@ securityContext:
 
 | Parameter | Description | Default |
 |-----------|-------------|---------|
+| `containerName` | Name of the main container; defaults to the cronjob key | `""` |
 | `commands` | Override the container entrypoint | `[]` |
 | `args` | Override the container arguments | `[]` |
 | `workingDir` | Working directory for the main container | `""` |
