@@ -1,0 +1,11 @@
+# Send api.example.com through a TCP/TLS passthrough at 203.0.113.10:8443,
+# keeping the real hostname for SNI and certificate verification.
+image:
+  repository: nginx
+  tag: "1.27"
+hostAliases:
+  - ip: "203.0.113.10"
+    hostnames:
+      - "api.example.com"
+env:
+  UPSTREAM_URL: https://api.example.com:8443

@@ -209,6 +209,7 @@ web pod with its own `component` label (e.g. via `podLabels`) is still covered.
 |-----------|-------------|---------|
 | `nodeSelector` | Node selector | `{}` |
 | `tolerations` | Tolerations | `[]` |
+| `hostAliases` | Extra `/etc/hosts` entries for the main Deployment's pods (`spec.hostAliases`) | `[]` |
 | `affinity` | Affinity rules | `{}` |
 | `topologySpreadConstraints` | Pod topology spread constraints (preferred over `podAntiAffinity` since k8s 1.19+, default-on since 1.25). String fields are processed through `tpl`, so `{{ .Release.Name }}` resolves correctly. | `[]` |
 

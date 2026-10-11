@@ -376,6 +376,18 @@
       },
       "description": "Tolerations"
     },
+    "hostAliases": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["ip", "hostnames"],
+        "properties": {
+          "ip": { "type": "string" },
+          "hostnames": { "type": "array", "items": { "type": "string" } }
+        }
+      },
+      "description": "Extra /etc/hosts entries for the main Deployment's pods"
+    },
     "affinity": {
       "type": "object",
       "description": "Affinity rules"

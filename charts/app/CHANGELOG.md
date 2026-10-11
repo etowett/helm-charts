@@ -5,6 +5,11 @@ All notable changes to this Helm chart will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.9.0] - 2026-10-11
+
+### Added
+- `hostAliases` (default `[]`): extra `/etc/hosts` entries on the main Deployment's pods. Use it to send a hostname through a proxy while keeping its real name for SNI and certificate checks. The render is unchanged when unset.
+
 ## [1.8.0] - 2026-10-07
 
 ### Changed

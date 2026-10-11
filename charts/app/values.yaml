@@ -431,6 +431,15 @@ volumeMounts: []
 ##
 nodeSelector: {}
 
+## @param hostAliases Extra /etc/hosts entries for the main Deployment's pods (spec.hostAliases).
+## Example: reach a host through a proxy while keeping its real name (SNI, certificate).
+## hostAliases:
+##   - ip: "203.0.113.10"
+##     hostnames:
+##       - "api.example.com"
+##
+hostAliases: []
+
 ## @param tolerations Tolerations for pod assignment
 ## Example:
 ## tolerations:
