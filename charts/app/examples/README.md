@@ -173,6 +173,18 @@ Some examples require additional components to be installed in your cluster:
 - **Celery examples**: Redis or RabbitMQ for message broker
 - **Autoscaling examples**: metrics-server for HPA
 
+### 11. Application with Host Aliases
+**File:** `with-host-aliases.yaml`
+
+Reach a hostname through a TCP/TLS passthrough while keeping its real name:
+- `hostAliases` adds an `/etc/hosts` entry to the pods
+- SNI and certificate verification still use the real hostname
+
+**Usage:**
+```bash
+helm install my-app ./charts/app -f ./charts/app/examples/with-host-aliases.yaml
+```
+
 ## Testing Examples
 
 You can test examples in a dry-run mode to see the generated Kubernetes manifests:
