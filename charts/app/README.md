@@ -192,7 +192,8 @@ web pod with its own `component` label (e.g. via `podLabels`) is still covered.
 | `networkPolicy.egress` | Egress rules | `[]` |
 
 Selects the same pods as the PDB (celery pods excluded). A listed policy type with no rules denies
-all traffic in that direction, so an enabled policy with the defaults blocks all ingress.
+all traffic in that direction, so an enabled policy with the defaults blocks all ingress. The `helm test`
+pod carries the same labels and is covered too, so it can't reach the app under a restrictive policy.
 
 ### Graceful Shutdown Parameters
 
