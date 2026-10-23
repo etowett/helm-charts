@@ -182,6 +182,19 @@ The PDB selects only the main app's pods: celery worker/beat/flower pods are exc
 `app.kubernetes.io/component NotIn [celery-worker, celery-beat, celery-flower]` expression, so a
 web pod with its own `component` label (e.g. via `podLabels`) is still covered.
 
+### Network Policy Parameters
+
+| Parameter | Description | Default |
+|-----------|-------------|---------|
+| `networkPolicy.enabled` | Create a NetworkPolicy for the main app's pods | `false` |
+| `networkPolicy.policyTypes` | Policy types to enforce (`Ingress`, `Egress`) | `["Ingress"]` |
+| `networkPolicy.ingress` | Ingress rules | `[]` |
+| `networkPolicy.egress` | Egress rules | `[]` |
+
+Selects the same pods as the PDB (celery pods excluded). A listed policy type with no rules denies
+all traffic in that direction, so an enabled policy with the defaults blocks all ingress. The `helm test`
+pod carries the same labels and is covered too, so it can't reach the app under a restrictive policy.
+
 ### Graceful Shutdown Parameters
 
 | Parameter | Description | Default |
