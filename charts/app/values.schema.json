@@ -317,6 +317,30 @@
         }
       }
     },
+    "networkPolicy": {
+      "type": "object",
+      "properties": {
+        "enabled": {
+          "type": "boolean",
+          "description": "Create a NetworkPolicy for the main app's pods"
+        },
+        "policyTypes": {
+          "type": "array",
+          "items": {"type": "string", "enum": ["Ingress", "Egress"]},
+          "description": "Policy types to enforce"
+        },
+        "ingress": {
+          "type": "array",
+          "items": {"type": "object"},
+          "description": "Ingress rules"
+        },
+        "egress": {
+          "type": "array",
+          "items": {"type": "object"},
+          "description": "Egress rules"
+        }
+      }
+    },
     "pvc": {
       "type": "object",
       "properties": {

@@ -185,6 +185,18 @@ Reach a hostname through a TCP/TLS passthrough while keeping its real name:
 helm install my-app ./charts/app -f ./charts/app/examples/with-host-aliases.yaml
 ```
 
+### 12. Application with a Network Policy
+**File:** `with-network-policy.yaml`
+
+Restrict who can reach the app and where it can connect:
+- Ingress only from Alertmanager pods in the `prometheus` namespace
+- Egress only to cluster DNS and public HTTPS
+
+**Usage:**
+```bash
+helm install my-app ./charts/app -f ./charts/app/examples/with-network-policy.yaml
+```
+
 ## Testing Examples
 
 You can test examples in a dry-run mode to see the generated Kubernetes manifests:

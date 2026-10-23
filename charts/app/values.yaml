@@ -371,6 +371,34 @@ pdb:
   enabled: false
   minAvailable: 1
 
+## @section Network Policy parameters
+##
+
+## NetworkPolicy for the main Deployment's pods (celery pods are not selected).
+## A listed policy type with no rules denies all traffic in that direction.
+## https://kubernetes.io/docs/concepts/services-networking/network-policies/
+## @param networkPolicy.enabled Create a NetworkPolicy for the main app's pods
+## @param networkPolicy.policyTypes Policy types to enforce (Ingress, Egress)
+## @param networkPolicy.ingress Ingress rules
+## @param networkPolicy.egress Egress rules
+## Example:
+## networkPolicy:
+##   ingress:
+##     - from:
+##         - namespaceSelector:
+##             matchLabels:
+##               kubernetes.io/metadata.name: ingress-nginx
+##       ports:
+##         - protocol: TCP
+##           port: 8080
+##
+networkPolicy:
+  enabled: false
+  policyTypes:
+    - Ingress
+  ingress: []
+  egress: []
+
 ## @section Storage parameters
 ##
 
